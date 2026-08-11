@@ -4,12 +4,17 @@ All notable changes to Driftwood are recorded here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Homebrew is now the first install option: `brew trust --cask gapmiss/tap/driftwood` followed by `brew install --cask gapmiss/tap/driftwood`. The DMG download is still there. The guide also documents uninstalling that way — `brew uninstall --cask` and `brew zap --cask` — because deleting the app from Applications by hand leaves Homebrew believing Driftwood is still installed. Turn off Launch at Login before either: macOS holds that registration and it outlives the bundle.
+
 ### Changed
 
 - ⌃⌥T now asks whether the panel has the keyboard, not only whether it is on screen. A panel left visible while you worked in another app took two presses to type in — the first hid it, the second brought it back. It takes one press now, and the hotkey only hides the panel when the panel is what you were typing in. ⌃⌥F is unchanged: it never hides.
 
 - Quick Commands ▸ is now always in the right-click menu. With none saved it says "No quick commands in config.json" and offers Edit Configuration…, which is the only place the feature announces itself — nothing in the app creates a quick command for you. It used to vanish entirely when the list was empty.
 - Launch at Login moved down, next to Reset Position and Edit Configuration…, instead of sitting alone between two separators.
+- The grab area at each corner of the panel is larger. It runs 16pt along both edges rather than being only the 6pt by 6pt square where the two edge bands met, and the pointer now turns into a diagonal resize arrow there so you can see you have the corner before you drag. The edges themselves are unchanged at 6pt, so a click meant for text at the end of a line still reaches the terminal. On macOS 14 the corner pointer stays the horizontal arrow — AppKit has no public diagonal cursor before macOS 15 — and corner dragging works in both axes on both.
 
 ### Removed
 
@@ -21,7 +26,11 @@ All notable changes to Driftwood are recorded here. Format follows [Keep a Chang
 
 - Selected text was drawn in black on every theme, which made a selection unreadable on the three dark ones. SwiftTerm re-renders a selected run with its own foreground color, and that color defaults to black unless the app sets it; selected text now uses the theme's foreground. Note that a selection still flattens ANSI color to that one foreground while it covers the text, which is SwiftTerm's behavior and not settable.
 - Retuned the selection band in Driftwood Night, Ember and Mono so the edges of a selection are findable without costing text contrast. Paper is unchanged.
+- The panel had a visible outline around it, which is not what a borderless panel should look like. Two separate things drew one: a hairline Driftwood painted itself, and `NSVisualEffectView`'s own edge stroke underneath it. The blur now extends slightly past the panel's rounded shape so its stroke falls outside, and nothing draws an outline.
+- Hovering an edge of the panel showed one of two different resize pointers depending on the exact pixel — the correct arrow a pixel in, a four-headed move cursor right on the edge. The second one was AppKit's, from a window flag Driftwood set for unrelated reasons and does not need, since it runs every resize itself. The flag is gone and the size floor it used to enforce is now enforced directly, which also fixes a case it never covered: raising the font size on an already-small panel left the panel below its own minimum until something else resized it.
+- A grey stripe ran down the right side of the terminal. It is SwiftTerm's scroll bar, and it was showing exactly when there was nothing to scroll: with scrollback to move through, it drew nothing at all, even mid-scroll. It is hidden now. Scrolling with the wheel, the trackpad and the keyboard is unaffected.
 - On the website, dragging across the mock terminal highlighted in the site's own blue rather than the selected theme's selection color.
+- On the website, the submenu marker in the guide's menu reference table wrapped onto its own line.
 
 ## [0.1.0] — 2026-08-09
 
