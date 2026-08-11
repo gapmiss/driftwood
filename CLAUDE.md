@@ -13,6 +13,7 @@ Driftwood keeps Starboard's terminal — a real PTY-backed login shell in a nona
 | `README.md` | What it does, install, `config.json` reference |
 | `CONTRIBUTING.md` | Ground rules and code style |
 | `CHANGELOG.md` | Release history |
+| `RELEASING.md` | **Read this before cutting a release.** The step-by-step order, and the steps nothing can check: the cask in the other repository, the og-image recapture, the download that tests the blocked first launch. It is in `.gitignore` and untracked on purpose, so it is on disk but never in a diff, a clone or a PR — do not go looking for it in git, and do not commit it |
 | Doc comments | Everything else — see the tripwire index below |
 | `docs/` | The website and the user guide — see "Working on the website" below |
 
