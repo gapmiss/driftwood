@@ -303,17 +303,10 @@
 
     <p>macOS 14 or later, Apple silicon and Intel.</p>
 
-    <!-- The Homebrew block ships commented out on purpose: there is no
-         gapmiss/homebrew-tap cask for Driftwood yet, and a page that prints a
-         `brew install` line for a cask nobody published sends visitors to an
-         error. Uncomment this and the matching block in guide.html in the same
-         commit that publishes the cask, so the two pages stay in step. The cask
-         installs the same ad-hoc-signed app the DMG carries, so the Gatekeeper
-         steps below apply on either path.
+    <!-- guide.html carries the same two lines. Change them together. -->
     <h3>Homebrew</h3>
     <pre><code class="language-bash">brew trust --cask gapmiss/tap/driftwood   # required for third-party taps
 brew install --cask gapmiss/tap/driftwood</code></pre>
-    -->
 
     <h3>The DMG</h3>
     <p>Download
