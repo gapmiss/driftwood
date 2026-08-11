@@ -76,6 +76,32 @@ enum PanelGeometry {
         return clamped
     }
 
+    /// Grow a frame to `minimum` on either axis it falls short of, keeping the
+    /// top-left corner where it is.
+    ///
+    /// The panel is not `.resizable` (see `TerminalPanel.init`), so `minSize`
+    /// is ignored and `setFrame` enforces no floor of its own. This is that
+    /// floor. It is needed when the minimum *moves* rather than when the frame
+    /// does: raising the font size or showing the tab strip both raise
+    /// `TerminalMetrics.minimumPanelSize` under a panel that is already on
+    /// screen, and nothing else would notice.
+    ///
+    /// The top-left corner is the anchor because the panel's origin is its
+    /// *bottom* left. Growing without moving the origin would push the panel
+    /// upward, out from under the pointer that just picked a larger font.
+    static func grownToMinimum(_ frame: CGRect, minimum: CGSize) -> CGRect {
+        guard frame.width < minimum.width || frame.height < minimum.height else {
+            return frame
+        }
+        let height = max(frame.height, minimum.height)
+        return CGRect(
+            x: frame.minX,
+            y: frame.maxY - height,
+            width: max(frame.width, minimum.width),
+            height: height
+        )
+    }
+
     /// A saved frame is only trusted if enough of it lands on some display —
     /// displays come and go, and a frame saved on a monitor that has since
     /// been unplugged names coordinates nothing can show.

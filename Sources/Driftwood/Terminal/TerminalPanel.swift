@@ -16,13 +16,24 @@ import AppKit
 final class TerminalPanel: NSPanel {
     init(contentRect: NSRect) {
         super.init(
-            // `.resizable` is in the mask because `minSize`/`maxSize` only
-            // apply to a resizable window and live-resize notifications only
-            // fire for one. It does **not** mean AppKit handles the resize:
-            // borderless edge dragging is unreliable at the corners, so
-            // `ChromeView` runs the drag itself.
+            // **`.resizable` is deliberately absent, and putting it back
+            // brings a second resize cursor with it.**
+            //
+            // It was in the mask for `minSize` and for live-resize
+            // notifications, neither of which Driftwood needs: `ChromeView`
+            // runs every resize drag itself, clamping through
+            // `TerminalMetrics.resized`, and `PanelGeometry.grownToMinimum`
+            // is the size floor that `minSize` used to be. What the flag also
+            // did was switch on AppKit's own window-edge tracking. A
+            // borderless window has no themed frame to draw a proper
+            // double-arrow for, so hovering the outermost pixel of an edge
+            // showed a generic four-headed move cursor instead of the
+            // left-right one `ChromeView` sets a pixel further in — the
+            // pointer changed shape twice crossing one edge. Our cursor rects
+            // cannot reach that pixel: they live in the content view, which
+            // stops at the window's edge.
             contentRect: contentRect,
-            styleMask: [.borderless, .nonactivatingPanel, .resizable],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )

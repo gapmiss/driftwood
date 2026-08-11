@@ -18,6 +18,23 @@ enum TerminalMetrics {
     /// the terminal.
     static let resizeMargin: CGFloat = 6
 
+    /// How far along an edge, measured from a corner, a grab still counts as
+    /// that corner rather than as the edge alone.
+    ///
+    /// Without this a corner is only where the two 6pt edge bands overlap — a
+    /// 6pt by 6pt square, about the size of a period on screen, and reported
+    /// as very hard to hit. The band cannot simply be widened instead: 6pt is
+    /// tuned so a click meant for text at the end of a line still reaches the
+    /// terminal, and a 16pt edge band would eat the last two characters of
+    /// every line. Widening only near the corners costs nothing, because the
+    /// text that far into a corner is the first or last cell of the first or
+    /// last row.
+    ///
+    /// The zone this produces is L-shaped rather than square: 16pt along each
+    /// edge, 6pt deep, plus the square where those two arms meet. That is the
+    /// shape of the corner target in every window manager that has one.
+    static let resizeCornerMargin: CGFloat = 16
+
     /// The smallest panel that still holds a usable terminal: 20 columns by 2
     /// rows, plus the padding on both axes and the tab strip if it is showing.
     ///
@@ -110,15 +127,36 @@ enum TerminalMetrics {
     /// Which edges of `bounds` a point is within grabbing distance of. Empty
     /// means the point is in the interior and the click belongs to the
     /// terminal.
+    ///
+    /// A point that grabs one edge and is also within `resizeCornerMargin` of
+    /// the nearer edge on the *other* axis grabs both — see that constant for
+    /// why the corner target is widened and the edge bands are not.
     static func resizeEdges(at point: CGPoint, in bounds: CGRect) -> ResizeEdges {
-        var edges: ResizeEdges = []
         guard bounds.insetBy(dx: -resizeMargin, dy: -resizeMargin).contains(point) else {
-            return edges
+            return []
         }
-        if point.x - bounds.minX <= resizeMargin { edges.insert(.left) }
-        if bounds.maxX - point.x <= resizeMargin { edges.insert(.right) }
-        if point.y - bounds.minY <= resizeMargin { edges.insert(.bottom) }
-        if bounds.maxY - point.y <= resizeMargin { edges.insert(.top) }
+        let toLeft = point.x - bounds.minX
+        let toRight = bounds.maxX - point.x
+        let toBottom = point.y - bounds.minY
+        let toTop = bounds.maxY - point.y
+
+        // Only the nearer edge on each axis can be grabbed. On a panel narrower
+        // than two margins both would otherwise match, and a drag that moved
+        // the left and right edges together would resize nothing.
+        let horizontal: (edge: ResizeEdges, distance: CGFloat) =
+            toLeft <= toRight ? (.left, toLeft) : (.right, toRight)
+        let vertical: (edge: ResizeEdges, distance: CGFloat) =
+            toBottom <= toTop ? (.bottom, toBottom) : (.top, toTop)
+
+        var edges: ResizeEdges = []
+        if horizontal.distance <= resizeMargin { edges.insert(horizontal.edge) }
+        if vertical.distance <= resizeMargin { edges.insert(vertical.edge) }
+        guard !edges.isEmpty else { return [] }
+
+        if horizontal.distance <= resizeCornerMargin && vertical.distance <= resizeCornerMargin {
+            edges.insert(horizontal.edge)
+            edges.insert(vertical.edge)
+        }
         return edges
     }
 

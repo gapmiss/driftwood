@@ -54,6 +54,34 @@ final class TerminalSession: NSObject, LocalProcessTerminalViewDelegate {
         // reflow. `TerminalMetrics.contentFrame` still centers the leftover
         // sub-row slack; that is layout, not sizing.
         view.autoresizingMask = [.width, .height]
+        hideScroller()
+    }
+
+    /// Hide the `NSScroller` SwiftTerm pins along the terminal's right edge.
+    ///
+    /// It is not a scroll indicator in this panel — it is a grey stripe. With
+    /// an empty terminal SwiftTerm leaves the scroller *disabled*
+    /// (`setupScroller` sets `isEnabled = false`), and a disabled scroller in
+    /// the legacy style draws its full-height track with no knob. With
+    /// scrollback to move through it draws nothing at all, not even while you
+    /// scroll. So it is visible exactly when there is nothing to scroll.
+    ///
+    /// This became visible in 0.2.0 and was not a SwiftTerm change. Until then
+    /// the terminal was a subview of the panel's `NSVisualEffectView`, whose
+    /// vibrancy blended the track into the blur behind it. Clipping the
+    /// effect view's own edge stroke (see `AppDelegate.buildPanel`) moved the
+    /// terminal out to a plain view, where the track draws at full contrast.
+    ///
+    /// Reaching into another view's subviews is not how this should be done,
+    /// and there is no alternative: `scroller` is private and SwiftTerm's only
+    /// public control is `scrollerStyle`, which chooses *which* scroller to
+    /// draw, never none. Nothing in SwiftTerm sets `isHidden` back to false, so
+    /// hiding it once at construction holds for the session's life. Scrolling
+    /// itself is untouched — wheel, trackpad and ⇧⌘Page keys all still work.
+    private func hideScroller() {
+        for case let scroller as NSScroller in view.subviews {
+            scroller.isHidden = true
+        }
     }
 
     /// Launch the login shell. A persistent process, not one per command, so

@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var quickCommands: [QuickCommand] = []
 
     private var panel: TerminalPanel!
+    private var rootView: NSView!
     private var effectView: NSVisualEffectView!
     private var tintView: NSView!
     private var tabBar: TabBar!
@@ -38,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var frameSaveWork: DispatchWorkItem?
 
     private let cornerRadius: CGFloat = 10
+    /// How far the blur hangs past the root view on every edge, so the
+    /// material's own edge stroke lands outside the clip — see `buildPanel`.
+    private let blurBleed: CGFloat = 2
     /// How long to wait after the last move or resize before writing
     /// `state.json`. A drag produces an event per pixel, and each one would
     /// otherwise be an atomic write of the whole file; 250ms collapses a drag
@@ -114,19 +118,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel = TerminalPanel(contentRect: frame)
         panel.delegate = self
 
-        effectView = NSVisualEffectView(frame: NSRect(origin: .zero, size: frame.size))
+        // **The root view is a plain view that clips, and the blur is a
+        // subview that hangs `blurBleed` past every edge of it. That is what
+        // makes the panel borderless.**
+        //
+        // Two separate things drew an outline. The first was ours: a 1pt white
+        // hairline at 15% alpha, set here as the effect view's layer border to
+        // define the rounded edge. Deleting it left the outline on screen,
+        // because the second one is `NSVisualEffectView`'s own. Every material
+        // tested — `.hudWindow` under both blending modes, `.popover`,
+        // `.underWindowBackground` — paints a light stroke at the view's edge,
+        // following whatever corner radius the layer has, and a plain layer
+        // with the same radius and the same shadow paints none. `maskImage`
+        // does not suppress it either; the stroke just follows the mask.
+        //
+        // So the stroke is clipped away instead. The effect view is inset by a
+        // negative amount, putting its edge outside the root view, and the
+        // root view masks to its own rounded bounds. Nothing is lost: the blur
+        // still covers the panel edge to edge, and only the material's edge
+        // treatment falls outside. 1pt is enough — 2pt is used for the same
+        // reason a hairline is 1pt: the stroke is one *point* wide, so a
+        // fractional scale factor could round it to more than one pixel.
+        //
+        // `.borderless` in the style mask never had anything to do with this.
+        // It means "no title bar".
+        rootView = NSView(frame: NSRect(origin: .zero, size: frame.size))
+        rootView.autoresizingMask = [.width, .height]
+        rootView.wantsLayer = true
+        rootView.layer?.cornerRadius = cornerRadius
+        // Clip subviews to the rounded shape. Without this the terminal view,
+        // which fills the panel edge to edge, paints square corners over the
+        // rounded blur — the blur is still round, and the content covers it.
+        rootView.layer?.masksToBounds = true
+
+        effectView = NSVisualEffectView(
+            frame: rootView.bounds.insetBy(dx: -blurBleed, dy: -blurBleed)
+        )
+        // Not `.width`/`.height` by accident: the four margins are fixed, so
+        // AppKit keeps the −`blurBleed` overhang on every edge as the panel
+        // resizes. A flexible margin here would let the overhang shrink to
+        // zero and the stroke reappear at some sizes and not others.
         effectView.autoresizingMask = [.width, .height]
         effectView.material = .hudWindow
         effectView.blendingMode = .behindWindow
         effectView.state = .active
-        effectView.wantsLayer = true
-        effectView.layer?.cornerRadius = cornerRadius
-        // Clip subviews to the rounded shape. Without this the terminal view,
-        // which fills the panel edge to edge, paints square corners over the
-        // rounded blur — the blur is still round, and the content covers it.
-        effectView.layer?.masksToBounds = true
-        effectView.layer?.borderWidth = 1
-        effectView.layer?.borderColor = NSColor.white.withAlphaComponent(0.15).cgColor
+        rootView.addSubview(effectView)
 
         // The theme's own tint, layered over the system blur and deliberately
         // independent of the desktop behind it. Starboard tried matching a
@@ -134,32 +170,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // private, OS-version-tuned, and reacts live to the wallpaper, so
         // chasing it means drifting apart on every macOS release. A fixed
         // color stays where you put it.
-        tintView = NSView(frame: effectView.bounds)
+        tintView = NSView(frame: rootView.bounds)
         tintView.autoresizingMask = [.width, .height]
         tintView.wantsLayer = true
-        effectView.addSubview(tintView)
+        rootView.addSubview(tintView)
 
-        tabBar = TabBar(frame: TerminalMetrics.tabBarFrame(in: effectView.bounds))
+        tabBar = TabBar(frame: TerminalMetrics.tabBarFrame(in: rootView.bounds))
         tabBar.autoresizingMask = [.width, .minYMargin]
         tabBar.isHidden = true
         tabBar.onSelect = { [weak self] index in self?.selectTab(index) }
         tabBar.onClose = { [weak self] index in self?.closeTab(at: index) }
         tabBar.onNewTab = { [weak self] in self?.newTab() }
         tabBar.onDrag = { [weak self] event in self?.panel.performDrag(with: event) }
-        effectView.addSubview(tabBar)
+        rootView.addSubview(tabBar)
 
-        chromeView = ChromeView(frame: effectView.bounds)
+        chromeView = ChromeView(frame: rootView.bounds)
         chromeView.autoresizingMask = [.width, .height]
         chromeView.onResize = { [weak self] edges, delta in self?.resizePanel(edges, by: delta) }
         chromeView.onResizeFinished = { [weak self] in self?.scheduleFrameSave() }
         chromeView.onContextMenu = { [weak self] event in self?.showSettingsMenu(event) }
         chromeView.onWindowDrag = { [weak self] event in self?.panel.performDrag(with: event) }
-        effectView.addSubview(chromeView)
+        rootView.addSubview(chromeView)
 
-        panel.contentView = effectView
-        panel.minSize = TerminalMetrics.minimumPanelSize(
+        panel.contentView = rootView
+        enforceMinimumSize()
+    }
+
+    /// Grow the panel if it is below the minimum for the current font and tab
+    /// strip. Call this after anything that *raises* the minimum.
+    ///
+    /// This is the floor that `NSWindow.minSize` used to be. The panel is not
+    /// `.resizable` any more (see `TerminalPanel.init` for why), and `minSize`
+    /// is ignored on a window that is not — so nothing but this stops a panel
+    /// from sitting below its own minimum. `minSize` never covered this case
+    /// well in the first place: setting it does not resize a window that is
+    /// already too small, it only constrains the next `setFrame`, so raising
+    /// the font size left the panel undersized until something else moved it.
+    private func enforceMinimumSize() {
+        let minimum = TerminalMetrics.minimumPanelSize(
             font: font, showingTabBar: sessions.showsTabBar
         )
+        let grown = PanelGeometry.grownToMinimum(panel.frame, minimum: minimum)
+        guard grown != panel.frame else { return }
+        panel.setFrame(grown, display: true)
+        layoutContent()
     }
 
     // MARK: - Sessions
@@ -197,7 +251,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func openSession(directory: String) -> TerminalSession {
         let session = TerminalSession(
             frame: TerminalMetrics.contentFrame(
-                in: effectView.bounds, font: font, showingTabBar: sessions.count >= 1
+                in: rootView.bounds, font: font, showingTabBar: sessions.count >= 1
             ),
             shell: config.shell
         )
@@ -227,9 +281,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             session.view.removeFromSuperview()
         }
         guard let active = sessions.active else { return }
-        if active.view.superview !== effectView {
+        if active.view.superview !== rootView {
             // Below the chrome, which must stay on top to keep hit-testing.
-            effectView.addSubview(active.view, positioned: .below, relativeTo: chromeView)
+            rootView.addSubview(active.view, positioned: .below, relativeTo: chromeView)
         }
         refreshTabBar()
         layoutContent()
@@ -247,15 +301,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let showing = sessions.showsTabBar
         if tabBar.isHidden == showing {
             tabBar.isHidden = !showing
-            panel.minSize = TerminalMetrics.minimumPanelSize(font: font, showingTabBar: showing)
+            enforceMinimumSize()
             layoutContent()
         }
     }
 
     private func layoutContent() {
-        tabBar.frame = TerminalMetrics.tabBarFrame(in: effectView.bounds)
+        tabBar.frame = TerminalMetrics.tabBarFrame(in: rootView.bounds)
         sessions.active?.view.frame = TerminalMetrics.contentFrame(
-            in: effectView.bounds, font: font, showingTabBar: sessions.showsTabBar
+            in: rootView.bounds, font: font, showingTabBar: sessions.showsTabBar
         )
     }
 
@@ -419,10 +473,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         layoutContent()
     }
 
-    func windowDidEndLiveResize(_ notification: Notification) {
-        scheduleFrameSave()
-    }
-
     /// Debounced frame persistence — see `frameSaveDelay`.
     private func scheduleFrameSave() {
         frameSaveWork?.cancel()
@@ -554,9 +604,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         state.save()
         font = Self.resolveFont(names: config.fontNames, size: size)
         for session in sessions.sessions { session.view.font = font }
-        panel.minSize = TerminalMetrics.minimumPanelSize(
-            font: font, showingTabBar: sessions.showsTabBar
-        )
+        enforceMinimumSize()
         // The cell height changed, so the centered slack did too — relayout
         // rather than waiting for the next resize.
         layoutContent()

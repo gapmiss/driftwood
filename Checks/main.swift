@@ -298,6 +298,28 @@ struct Check {
         check(TerminalMetrics.resizeEdges(at: CGPoint(x: -500, y: -500), in: box).isEmpty,
               "a point far outside the panel grabs nothing")
 
+        // The corner target is L-shaped: it runs `resizeCornerMargin` along
+        // each edge, not only the square where the two edge bands overlap.
+        check(TerminalMetrics.resizeEdges(at: CGPoint(x: 2, y: 12), in: box) == [.left, .bottom],
+              "a grab on the left edge, 12pt up from the bottom, is still the corner")
+        check(TerminalMetrics.resizeEdges(at: CGPoint(x: 12, y: 2), in: box) == [.left, .bottom],
+              "a grab on the bottom edge, 12pt in from the left, is still the corner")
+        check(TerminalMetrics.resizeEdges(at: CGPoint(x: 2, y: 20), in: box) == .left,
+              "past the corner margin the left edge is only the left edge")
+        check(TerminalMetrics.resizeEdges(at: CGPoint(x: 12, y: 12), in: box).isEmpty,
+              "the corner margin widens the corner without deepening the edge bands")
+        check(TerminalMetrics.resizeEdges(at: CGPoint(x: 98, y: 88), in: box) == [.right, .top],
+              "the far corner widens the same way")
+
+        // A panel narrower than two margins must still resize. Only the nearer
+        // edge on each axis is grabbed, so a drag never moves both at once.
+        let sliver = CGRect(x: 0, y: 0, width: 8, height: 8)
+        let grab = TerminalMetrics.resizeEdges(at: CGPoint(x: 3, y: 3), in: sliver)
+        check(!grab.contains(.left) || !grab.contains(.right),
+              "a panel narrower than two margins grabs one horizontal edge, never both")
+        check(!grab.contains(.top) || !grab.contains(.bottom),
+              "a panel shorter than two margins grabs one vertical edge, never both")
+
         // Resizing moves only the grabbed edge.
         let frame = CGRect(x: 100, y: 100, width: 300, height: 200)
         let floor = CGSize(width: 120, height: 60)
@@ -400,6 +422,22 @@ struct Check {
         check(PanelGeometry.defaultFrame(
                 size: size, onVisible: PanelGeometry.fallbackVisibleFrame).width == size.width,
               "the no-screen fallback frame is a usable rect")
+
+        // The size floor, which `NSWindow.minSize` no longer provides — the
+        // panel is not `.resizable`. Growth hangs off the top-left corner.
+        let small = CGRect(x: 200, y: 500, width: 100, height: 40)
+        let floorSize = CGSize(width: 300, height: 120)
+        let grown = PanelGeometry.grownToMinimum(small, minimum: floorSize)
+        check(grown.width == 300 && grown.height == 120,
+              "a panel below the minimum is grown to it on both axes")
+        check(grown.minX == small.minX && grown.maxY == small.maxY,
+              "growing to the minimum keeps the top-left corner where it was")
+        let roomy = CGRect(x: 0, y: 0, width: 800, height: 400)
+        check(PanelGeometry.grownToMinimum(roomy, minimum: floorSize) == roomy,
+              "a panel already above the minimum is left alone")
+        let halfShort = CGRect(x: 0, y: 0, width: 800, height: 40)
+        check(PanelGeometry.grownToMinimum(halfShort, minimum: floorSize).width == 800,
+              "growing one axis to the minimum never shrinks the other")
     }
 
     // MARK: - Quick commands

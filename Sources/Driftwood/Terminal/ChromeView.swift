@@ -64,17 +64,22 @@ final class ChromeView: NSView {
         return nil
     }
 
-    /// Left/right on the vertical edges, up/down on the horizontal ones, so
-    /// the pointer changes shape before the click rather than after it.
+    /// Left/right on the vertical edges, up/down on the horizontal ones, and a
+    /// diagonal at each corner, so the pointer changes shape before the click
+    /// rather than after it.
     ///
-    /// The corners get whichever edge rect was added *last* — the horizontal
-    /// ones — rather than a diagonal cursor, because AppKit ships no public
-    /// diagonal resize cursor. (`NSCursor` has private `_windowResizeNorthEast…`
-    /// variants; they are not API and an app that calls them can stop drawing a
-    /// cursor at all on the next macOS release.) Corner *dragging* still works
-    /// in both axes — only the pointer's picture is approximate.
+    /// **The corner rects have to be added last.** Two cursor rects covering
+    /// the same point resolve to the one added most recently, and every corner
+    /// rect sits inside an edge band. Added first, they would never be seen.
+    ///
+    /// Each corner takes *two* rects, not one, because the corner grab region
+    /// is L-shaped rather than square — `resizeCornerMargin` along each edge by
+    /// `resizeMargin` deep. One rect per arm makes the pointer agree with
+    /// `TerminalMetrics.resizeEdges` exactly, so there is no band where the
+    /// cursor promises a corner and the drag delivers an edge.
     override func resetCursorRects() {
         let margin = TerminalMetrics.resizeMargin
+        let corner = TerminalMetrics.resizeCornerMargin
         let b = bounds
         addCursorRect(NSRect(x: b.minX, y: b.minY, width: margin, height: b.height),
                       cursor: NSCursor.resizeLeftRight)
@@ -84,6 +89,44 @@ final class ChromeView: NSView {
                       cursor: NSCursor.resizeUpDown)
         addCursorRect(NSRect(x: b.minX, y: b.maxY - margin, width: b.width, height: margin),
                       cursor: NSCursor.resizeUpDown)
+
+        let corners: [(along: NSRect, up: NSRect, corner: Corner)] = [
+            (NSRect(x: b.minX, y: b.minY, width: corner, height: margin),
+             NSRect(x: b.minX, y: b.minY, width: margin, height: corner), .bottomLeft),
+            (NSRect(x: b.maxX - corner, y: b.minY, width: corner, height: margin),
+             NSRect(x: b.maxX - margin, y: b.minY, width: margin, height: corner), .bottomRight),
+            (NSRect(x: b.minX, y: b.maxY - margin, width: corner, height: margin),
+             NSRect(x: b.minX, y: b.maxY - corner, width: margin, height: corner), .topLeft),
+            (NSRect(x: b.maxX - corner, y: b.maxY - margin, width: corner, height: margin),
+             NSRect(x: b.maxX - margin, y: b.maxY - corner, width: margin, height: corner), .topRight),
+        ]
+        for (along, up, which) in corners {
+            let cursor = Self.cursor(for: which)
+            addCursorRect(along, cursor: cursor)
+            addCursorRect(up, cursor: cursor)
+        }
+    }
+
+    private enum Corner { case bottomLeft, bottomRight, topLeft, topRight }
+
+    /// The diagonal pointer for a corner, or the horizontal one where there is
+    /// no diagonal to be had.
+    ///
+    /// macOS 15 added `NSCursor.frameResize(position:directions:)`, which is
+    /// the first *public* diagonal resize cursor AppKit has ever had. Before
+    /// it there were only the private `_windowResizeNorthEast…` variants, which
+    /// are not API — an app that calls them can stop drawing a cursor at all on
+    /// the next macOS release. Driftwood deploys to macOS 14, so 14 keeps the
+    /// old approximation: the horizontal cursor, with corner *dragging* working
+    /// in both axes exactly as it does on 15. Only the picture is wrong there.
+    private static func cursor(for corner: Corner) -> NSCursor {
+        guard #available(macOS 15.0, *) else { return .resizeLeftRight }
+        switch corner {
+        case .bottomLeft: return .frameResize(position: .bottomLeft, directions: .all)
+        case .bottomRight: return .frameResize(position: .bottomRight, directions: .all)
+        case .topLeft: return .frameResize(position: .topLeft, directions: .all)
+        case .topRight: return .frameResize(position: .topRight, directions: .all)
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
