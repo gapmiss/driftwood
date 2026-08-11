@@ -386,6 +386,19 @@ th, td {
 }
 th { color: var(--text-secondary); font-weight: 600; }
 
+/* The menu reference: its first column is a list of menu item labels, and three
+   of them carry the ▸ that means "this row opens a submenu". At the default
+   column width the ▸ wrapped onto a line of its own under "Quick Commands",
+   which reads as a stray character rather than as part of the label. `width: 1%`
+   with `nowrap` sizes the column to its longest label and gives the rest to the
+   description. The table scrolls sideways inside .table-wrap on a narrow screen
+   rather than wrapping. */
+.menu-items td:first-child,
+.menu-items th:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
 /* The privacy claims and the Gatekeeper steps: a list of full sentences, each
    opening with the thing it is about in bold. */
 .claims { margin: 0; padding-left: 20px; }
