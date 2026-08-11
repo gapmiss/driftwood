@@ -61,6 +61,16 @@ struct QuickCommand: Equatable {
 /// check is whether a command is a good idea, which is why nothing here runs
 /// one.
 enum QuickCommands {
+    /// What both empty states say when the list is empty.
+    ///
+    /// There are two places a user arrives with no commands saved — the
+    /// Quick Commands ▸ submenu and the palette — and they name the file to
+    /// edit rather than saying "nothing here", because quick commands have no
+    /// UI to create one. Shared rather than written twice: the two are meant to
+    /// be the same sentence, and `make check` asserts it names `config.json`,
+    /// which is the actionable half.
+    static let emptyStateMessage = "No quick commands in config.json"
+
     /// One rejected or downgraded entry, with the reason to log.
     struct Problem: Equatable {
         let id: String

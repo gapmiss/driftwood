@@ -416,6 +416,13 @@ struct Check {
         ])
         check(ok.problems.isEmpty && ok.commands.count == 1, "a plain entry validates")
 
+        // The empty state is the only thing that tells a user quick commands
+        // exist — there is no UI that creates one — so it has to name the file
+        // they would have to edit. Both the menu submenu and the palette print
+        // this one string.
+        check(QuickCommands.emptyStateMessage.contains("config.json"),
+              "the empty state names the file to edit, not just that the list is empty")
+
         // The safety default. A hotkey that fires a shell command with no
         // confirmation, possibly while the panel is hidden, is opt-in.
         check(ok.commands.first?.runsImmediately == false,

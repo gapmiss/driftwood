@@ -275,7 +275,7 @@ private struct PaletteView: View {
 
             if model.matches.isEmpty {
                 Text(model.commands.isEmpty
-                     ? "No quick commands in config.json"
+                     ? QuickCommands.emptyStateMessage
                      : "No match")
                     .foregroundStyle(.secondary)
                     .padding(10)
