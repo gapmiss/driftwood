@@ -1,0 +1,149 @@
+/* Guide-specific styles — layered on top of style.css. */
+
+.guide {
+  max-width: 740px;
+  padding-bottom: 40px;
+}
+
+.guide-header {
+  padding-top: 48px;
+  margin-bottom: 40px;
+}
+
+.guide-back {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.guide-back:hover { color: var(--accent-bright); }
+
+.guide-header h1 {
+  font-size: 36px;
+  margin: 12px 0 8px;
+}
+
+.guide-header h1::after {
+  content: "";
+  display: block;
+  width: 96px;
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-bright), transparent);
+}
+
+.guide-header .tagline {
+  margin: 0 0 20px;
+  max-width: none;
+}
+
+.guide-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+.guide-nav a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 4px 10px;
+}
+.guide-nav a:hover { color: var(--text); border-color: var(--accent); }
+
+/* Anchored headings land under nothing — there is no sticky header — but the
+   nav links jump to a section whose kicker sits above the h2, so give the
+   section itself the scroll margin rather than the heading. */
+.guide section { scroll-margin-top: 24px; }
+
+.guide h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guide table code { white-space: nowrap; }
+
+/* Without a floor, a long second column squeezes the first one to about six
+   characters and every cell in it wraps one word per line. */
+.guide table td:first-child,
+.guide table th:first-child { min-width: 7.5em; }
+
+/* The install paths and other short sub-headings inside a section. style.css
+   gives h4 the monospace family but no size of its own. */
+.guide h4 {
+  font-size: 15px;
+  margin: 22px 0 6px;
+  color: var(--text-secondary);
+}
+
+.guide .callout { margin: 20px 0; }
+.guide .callout p { margin: 0 0 10px; }
+.guide .callout p:last-child { margin-bottom: 0; }
+
+.guide ul { padding-left: 20px; }
+.guide ul li { margin-bottom: 8px; }
+
+/* ---------- Theme swatches ----------
+   Built by driftwood.js from themes.js, which `make site` generates from
+   TerminalTheme.swift. The colors arrive as inline styles from that data; only
+   the layout is here. */
+
+.swatch-block { margin: 26px 0; }
+
+.swatch-block h3 code {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--text-tertiary);
+}
+
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 14px;
+}
+
+.swatch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* The checkerboard is what makes an alpha visible: `background` carries one on
+   every built-in theme, and over a flat tile a 69%-opaque color just looks like
+   a slightly different flat color. */
+.swatch-chip {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background-image:
+    linear-gradient(45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+  overflow: hidden;
+}
+
+.swatch-chip > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.swatch-role { flex: 1; }
+
+.swatch-hex {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: none;
+  padding: 0;
+}

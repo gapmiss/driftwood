@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driftwood - a floating terminal panel for macOS</title>
+  <meta name="description"
+        content="A borderless, blurred, always-on-top terminal panel for macOS. Press Control-Option-T over whatever you are working in, type a command, press it again. No Dock icon, no permissions, no network calls.">
+  <script>
+    // Apply a saved mode before the stylesheet loads, so there's no flash.
+    try {
+      var mode = localStorage.getItem("driftwood-mode");
+      if (mode === "light" || mode === "dark") {
+        document.documentElement.dataset.theme = mode;
+      }
+    } catch (e) {}
+  </script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta property="og:title" content="Driftwood — a floating terminal panel for macOS">
+  <meta property="og:description"
+        content="Press ⌃⌥T over whatever you are working in, type a command, press it again. The app behind never loses focus.">
+  <meta property="og:image" content="og-image.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="panel.css">
+  <link rel="stylesheet" href="prism-driftwood.css">
+</head>
+<body>
+<a class="skip" href="#what-it-does">Skip the demo</a>
+<button class="mode-toggle" id="mode-toggle" aria-label="Toggle light/dark mode"></button>
+<main>
+
+  <header class="hero">
+    <h1>Driftwood</h1>
+    <p class="tagline">
+      A floating terminal panel for macOS. Press <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span>
+      over whatever you are working in, type a command, press it again.
+      A real login shell on a PTY, with your prompt and your <code>$PATH</code>,
+      in a window that never takes focus from the app behind it.
+    </p>
+
+    <!-- The stage: a mock editor window, with the re-created Driftwood panel
+         floating over it. The editor's title bar stays *active* the whole time
+         the panel has the keyboard — that is the one thing about this app a
+         screenshot cannot show, and the reason it is the hero.
+
+         The markup is written out here rather than built by driftwood.js, so
+         the hero still shows what Driftwood looks like with scripting off.
+         Step 4 makes these same nodes interactive; it does not replace them.
+         The one thing that needs JavaScript is color: the --dw-* properties
+         come from themes.js, which is generated from the app's own palettes,
+         and hardcoding a fallback set here would be the hand-copied palette
+         that arrangement exists to avoid. -->
+    <div class="stage" id="stage">
+
+      <div class="editor" id="editor" aria-hidden="true">
+        <div class="editor-bar">
+          <span class="editor-dot red"></span>
+          <span class="editor-dot amber"></span>
+          <span class="editor-dot green"></span>
+          <span class="editor-title">AppDelegate.swift</span>
+        </div>
+        <div class="editor-body"><span class="c">// The panel never steals the frontmost application.</span>
+<span class="k">func</span> showPanel() {
+    panel.orderFrontRegardless()
+    panel.makeKey()
+}</div>
+      </div>
+
+      <div class="dw-panel" id="panel">
+
+        <!-- Real buttons, in the markup rather than built by script, so the
+             strip is the same shape with scripting on and off. driftwood.js
+             re-renders this list from its tab model; it does not change the
+             structure. -->
+        <div class="dw-tabs" id="tabs">
+          <div class="dw-tab is-active">
+            <button type="button" class="dw-tab-btn">zsh</button>
+            <button type="button" class="dw-close" aria-label="Close zsh"></button>
+          </div>
+          <div class="dw-tab">
+            <button type="button" class="dw-tab-btn">driftwood</button>
+            <button type="button" class="dw-close" aria-label="Close driftwood"></button>
+          </div>
+          <button type="button" class="dw-newtab" id="newtab" aria-label="New tab"></button>
+        </div>
+
+        <div class="dw-term" id="term">
+          <!-- Everything the shell has printed. A log region, so a screen
+               reader announces output as it arrives rather than only on
+               focus. -->
+          <div id="out" role="log" aria-live="polite" aria-label="Demo shell output">
+            <p class="dw-line"><span class="dw-prompt">~ $</span> echo $SHELL</p>
+            <p class="dw-line">/bin/zsh</p>
+          </div>
+
+          <!-- The prompt. The <input> sits invisibly on top of this line and
+               takes the keystrokes; .dw-typed mirrors its value so the text
+               is drawn in the terminal's own font and color, and the block
+               cursor is ours rather than the browser's caret. -->
+          <!-- No stray whitespace inside this element. .dw-line is pre-wrap,
+               so a newline and an indent in the source render as a line break
+               and a leading indent in the terminal. -->
+          <p class="dw-line dw-inputline"><span class="dw-prompt">~ $</span> <span class="dw-typed" id="typed"></span><span class="dw-cursor" id="cursor" aria-hidden="true"></span><input id="input" class="dw-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="200" aria-label="Demo shell input"></p>
+        </div>
+      </div>
+
+      <!-- Shown only once the last tab is closed, which hides the panel the
+           way the app does. The app leaves nothing on screen at that point —
+           ⌃⌥T is the only way back — but a web page cannot assume the visitor
+           read the shortcut list, so this names the key and carries a button
+           that does the same thing. -->
+      <div class="stage-hint" id="stage-hint" hidden>
+        <span>The panel is hidden, the way closing the last tab hides it.</span>
+        <button type="button" class="chip" id="stage-hint-btn">Press <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span></button>
+      </div>
+
+      <!-- The right-click menu and the command palette are built by
+           driftwood.js rather than written out here. Unlike the panel, they
+           have no meaningful state with scripting off: a menu that cannot open
+           and a palette that cannot filter would be dead chrome sitting on top
+           of the hero, not a picture of anything. -->
+
+    </div>
+
+    <p class="stage-caption">The window behind never loses focus.</p>
+
+    <div class="chips" id="chips"><!-- theme, menu and palette chips: driftwood.js --></div>
+    <p class="chips-hint">
+      interactive re-creation, not a screenshot
+      <span class="keyhint-wrap">
+        <!-- An inline SVG rather than the ⌨ character, which has no glyph in
+             the system UI font and draws as an empty box. -->
+        <button type="button" class="keyhint" id="keyhint" aria-expanded="false"
+                aria-controls="keyhint-list" aria-label="Keyboard shortcuts">
+          <svg viewBox="0 0 20 13" aria-hidden="true">
+            <rect x="0.6" y="0.6" width="18.8" height="11.8" rx="2.2"/>
+            <path d="M3.4 4.3h1M6.4 4.3h1M9.4 4.3h1M12.4 4.3h1M15.4 4.3h1M3.4 8.3h1M6.4 8.3h6.2M15.4 8.3h1"/>
+          </svg>
+        </button>
+        <span class="keyhint-list" id="keyhint-list">
+          <span><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> hide and show the panel</span>
+          <span><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>K</kbd></span> quick-command palette</span>
+          <span><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>N</kbd></span> new tab</span>
+          <span><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>1</kbd></span> /
+            <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>2</kbd></span> the sample commands</span>
+          <span class="keyhint-note">In the app, <span class="keys"><kbd>&#x2318;</kbd><kbd>T</kbd></span> and
+            <span class="keys"><kbd>&#x2318;</kbd><kbd>W</kbd></span> also open and close a tab. This page cannot
+            use them: a browser keeps both for its own tabs and will not hand them to a page.</span>
+        </span>
+      </span>
+    </p>
+
+    <div class="cta">
+      <a class="download" href="https://github.com/gapmiss/driftwood/releases/latest/download/Driftwood.dmg">
+        Download for macOS
+      </a>
+      <p class="fineprint">
+        macOS 14+ &middot; free &amp; open source &middot;
+        <a href="#install">install steps</a> &middot;
+        <a href="guide.html">user guide</a>
+      </p>
+    </div>
+  </header>
+
+  <!-- ================================================================== -->
+  <section id="what-it-does">
+    <p class="kicker">What it does</p>
+    <h2>A terminal that gets out of the way</h2>
+
+    <!-- Each demo drives the hero above rather than describing it. The buttons
+         start hidden and driftwood.js unhides them, so with scripting off this
+         section is prose with no dead controls in it. -->
+    <div class="demos">
+
+      <div class="demo">
+        <h3>It appears over what you are doing, and the app behind stays active</h3>
+        <p>Press <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> and the panel is
+          there with the keyboard already in it. Press it again and the panel is gone. The editor you
+          were in never deactivates: its title bar stays lit and its cursor stays where you left it,
+          because Driftwood's window is a nonactivating panel that takes keystrokes without making
+          Driftwood the frontmost application.</p>
+        <p>That is the whole design, and it is the one thing a screenshot cannot show. Watch the mock
+          editor's title bar in the demo above while the panel comes and goes — nothing about it dims.</p>
+        <button type="button" class="demo-btn" data-demo="toggle" hidden>Hide and show the panel</button>
+      </div>
+
+      <div class="demo">
+        <h3>Tabs, and the strip that hides itself</h3>
+        <p>Each tab is its own login shell. The strip across the top appears when there are two or more
+          and disappears when there is one, so a single-tab panel is nothing but terminal. Closing the
+          last tab hides the panel rather than quitting Driftwood, and the next
+          <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> brings it back with a
+          fresh shell.</p>
+        <button type="button" class="demo-btn" data-demo="tab" hidden>Open a tab</button>
+        <button type="button" class="demo-btn" data-demo="close-tab" hidden>Close one</button>
+      </div>
+
+      <div class="demo">
+        <h3>Four themes, and your own</h3>
+        <p>Driftwood Night, Ember, Paper and Mono ship with the app, and each one sets all sixteen ANSI
+          colors plus the background, foreground, cursor, selection and tab text. Add your own in
+          <code>config.json</code> and it joins the Theme menu next to the built-ins. The swatches on
+          this page are generated from the app's own palettes, so they cannot drift from what you get.</p>
+        <button type="button" class="demo-btn" data-demo="theme" hidden>Cycle the theme</button>
+        <button type="button" class="demo-btn" data-demo="menu" hidden>Open the right-click menu</button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="privacy">
+    <p class="kicker">Permissions</p>
+    <h2>It asks for nothing</h2>
+
+    <p>Driftwood runs a login shell with your full environment and can fire commands from a global
+       hotkey. Deciding whether to trust that deserves specific claims rather than the word
+       "private", so here they are, each one checkable in the source.</p>
+
+    <div class="callout">
+      <ul class="claims">
+        <li><strong>No Accessibility permission, and nothing that would need one.</strong> The global
+          hotkeys are registered with Carbon's <code>RegisterEventHotKey</code>, which requires no
+          permission at all. The usual alternative — an <code>NSEvent</code> global monitor — would
+          have required the Accessibility grant, and Driftwood does not use one.</li>
+        <li><strong>No other system permission.</strong> No Screen Recording, no Automation, no Full
+          Disk Access. macOS never shows a consent dialog for it.</li>
+        <li><strong>No network calls.</strong> There is no <code>URLSession</code> anywhere in the
+          source, and no other networking API either. "Check for Updates" opens the GitHub releases
+          page in your browser; the comparison is yours to make.</li>
+        <li><strong>No telemetry, no analytics, no crash reporting.</strong> Nothing is counted and
+          nothing is sent.</li>
+        <li><strong>Three files, all of them yours to read.</strong>
+          <code>config.json</code> and <code>state.json</code> in
+          <code>~/Library/Application&nbsp;Support/Driftwood/</code>, plus a log in
+          <code>~/Library/Logs/Driftwood/</code> that is written only when you set
+          <code>"debug": true</code>. Nothing else is written anywhere.</li>
+        <li><strong>No Dock icon and no menu bar item.</strong> Nothing polls, nothing watches the
+          Dock, and there is no background timer.</li>
+      </ul>
+    </div>
+
+    <p class="fineprint">Driftwood is MIT licensed and the source is on
+      <a href="https://github.com/gapmiss/driftwood">GitHub</a>. Every claim above is a
+      <code>grep</code> away.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="settings">
+    <p class="kicker">Settings</p>
+    <h2>Two files you can read</h2>
+
+    <p>There is no preferences window. Settings are two JSON files in
+       <code>~/Library/Application&nbsp;Support/Driftwood/</code>, and they are split by who writes
+       them. <code>config.json</code> is yours: Driftwood writes it exactly once, to create it on
+       first launch, and never again. <code>state.json</code> is the app's, and holds the panel's
+       frame and whatever you picked from the right-click menu.</p>
+
+    <p>The split is the reason dragging the window can never clobber a hotkey you edited by hand.</p>
+
+    <pre><code class="language-json">{
+  "shell": "/bin/zsh",
+  "shellArguments": ["-l"],
+  "fontNames": ["MesloLGS NF", "Menlo"],
+  "hotkeys": {
+    "toggle": "control+option+t",
+    "focus": "control+option+f",
+    "newTab": "control+option+n",
+    "commands": "control+option+k",
+    "quit": ""
+  },
+  "terminalPalette": { "ansi1": "#c64a5a" },
+  "quickCommands": [
+    {
+      "id": "logs",
+      "title": "Tail logs",
+      "command": "tail -f /tmp/app.log",
+      "hotkey": "control+option+1"
+    }
+  ],
+  "debug": false
+}</code></pre>
+
+    <p>Every key is optional and every one has a default, so a key you delete falls back and a key
+       Driftwood does not recognize is ignored. A file that will not parse at all is <em>moved
+       aside</em> to <code>config.json.bak</code> rather than overwritten, so nothing you wrote is
+       lost. Changes take effect on the next launch.</p>
+
+    <p class="build-note">Every key, its type, its default and what it does:
+       <a href="guide.html#configuration">the configuration reference</a> in the guide. The hotkey
+       grammar is <a href="guide.html#hotkeys">next to it</a>, and custom themes are
+       <a href="guide.html#themes">in the section above that</a>.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="install">
+    <p class="kicker">Get started</p>
+    <h2>Install</h2>
+
+    <p>macOS 14 or later, Apple silicon and Intel.</p>
+
+    <!-- The Homebrew block ships commented out on purpose: there is no
+         gapmiss/homebrew-tap cask for Driftwood yet, and a page that prints a
+         `brew install` line for a cask nobody published sends visitors to an
+         error. Uncomment this and the matching block in guide.html in the same
+         commit that publishes the cask, so the two pages stay in step. The cask
+         installs the same ad-hoc-signed app the DMG carries, so the Gatekeeper
+         steps below apply on either path.
+    <h3>Homebrew</h3>
+    <pre><code class="language-bash">brew trust --cask gapmiss/tap/driftwood   # required for third-party taps
+brew install --cask gapmiss/tap/driftwood</code></pre>
+    -->
+
+    <h3>The DMG</h3>
+    <p>Download
+      <a href="https://github.com/gapmiss/driftwood/releases/latest/download/Driftwood.dmg">Driftwood.dmg</a>,
+      open it, drag Driftwood to Applications, then read the next paragraph before you
+      double-click it.</p>
+
+    <h3>The first launch is blocked, and that is expected</h3>
+    <p>Driftwood is signed ad-hoc rather than notarized, so macOS refuses to open it the first time
+       with a message that sounds worse than it is. Nothing is damaged — the app has a valid
+       signature, it has just not been through Apple's notary service. Unblock it once:</p>
+    <ul class="claims">
+      <li><strong>macOS 15 and later:</strong> let it be blocked, then open System Settings &rarr;
+        Privacy &amp; Security, scroll to Security, and click <strong>Open Anyway</strong>.</li>
+      <li><strong>macOS 14:</strong> right-click the app &rarr; <strong>Open</strong> &rarr;
+        <strong>Open</strong>.</li>
+      <li><strong>Either, from a terminal:</strong>
+        <code>xattr -dr com.apple.quarantine /Applications/Driftwood.app</code></li>
+    </ul>
+
+    <h3>From source</h3>
+    <p>Needs a Swift toolchain — Xcode or the Command Line Tools. There is no Xcode project.</p>
+    <pre><code class="language-bash">git clone https://github.com/gapmiss/driftwood
+cd driftwood
+make run</code></pre>
+    <p class="build-note">A build from source is not quarantined, so none of the Gatekeeper steps
+       above apply to it. The full version of all of this, including where the app is once it is
+       running, is in <a href="guide.html#getting-started">the guide</a>.</p>
+  </section>
+
+</main>
+
+<footer>
+  <nav class="footer-links">
+    <a href="https://github.com/gapmiss/driftwood">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      Source on GitHub
+    </a>
+    <a href="https://github.com/gapmiss/driftwood/releases">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M2 2h5.6c.4 0 .78.16 1.06.44l5.9 5.9a1.5 1.5 0 0 1 0 2.12l-4.1 4.1a1.5 1.5 0 0 1-2.12 0l-5.9-5.9A1.5 1.5 0 0 1 2 7.6V2zm3.25 4.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z"/></svg>
+      Releases
+    </a>
+    <a href="guide.html">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3.38a1.5 1.5 0 0 1 1.06.44l.56.56a1.5 1.5 0 0 0 1.06.44H13.5A1.5 1.5 0 0 1 15 3.94V5H1zM1 6h14v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5z"/></svg>
+      User guide
+    </a>
+  </nav>
+  <p class="version">
+    Driftwood <a href="https://github.com/gapmiss/driftwood/releases/latest">0.1.0</a>
+  </p>
+  <p class="legal">
+    MIT licensed. The terminal is
+    <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a> by Miguel de Icaza.
+  </p>
+</footer>
+
+<script src="themes.js"></script>
+<script src="driftwood.js"></script>
+<script src="mode.js"></script>
+<script src="prism.min.js"></script>
+<script src="prism-bash.min.js"></script>
+<script src="prism-json.min.js"></script>
+<script src="copy-code.js"></script>
+</body>
+</html>

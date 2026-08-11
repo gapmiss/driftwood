@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driftwood User Guide</title>
+  <meta name="description"
+        content="User guide for Driftwood, a floating terminal panel for macOS. Install, panel, tabs, themes, quick commands, configuration, hotkeys and troubleshooting.">
+  <script>
+    try {
+      var mode = localStorage.getItem("driftwood-mode");
+      if (mode === "light" || mode === "dark") {
+        document.documentElement.dataset.theme = mode;
+      }
+    } catch (e) {}
+  </script>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta property="og:title" content="Driftwood User Guide">
+  <meta property="og:description"
+        content="From first launch to full setup: the panel, tabs, themes, quick commands, config.json and troubleshooting.">
+  <meta property="og:image" content="og-image.png">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="guide.css">
+  <link rel="stylesheet" href="prism-driftwood.css">
+</head>
+<body>
+<button class="mode-toggle" id="mode-toggle" aria-label="Toggle light/dark mode"></button>
+<main class="guide">
+
+  <header class="guide-header">
+    <a href="./" class="guide-back">&larr; Driftwood</a>
+    <h1>User Guide</h1>
+    <p class="tagline">From first launch to full setup.</p>
+    <nav class="guide-nav">
+      <a href="#getting-started">Getting started</a>
+      <a href="#panel">The panel</a>
+      <a href="#tabs">Tabs</a>
+      <a href="#themes">Themes &amp; fonts</a>
+      <a href="#quick-commands">Quick commands</a>
+      <a href="#configuration">Configuration</a>
+      <a href="#hotkeys">Hotkeys</a>
+      <a href="#menu">Menu reference</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="#uninstall">Uninstall</a>
+    </nav>
+  </header>
+
+  <!-- ================================================================== -->
+  <section id="getting-started">
+    <p class="kicker">Setup</p>
+    <h2>Getting started</h2>
+
+    <p>Driftwood needs macOS 14 or later, and runs on Apple silicon and Intel. It asks for no system
+       permission at all — see <a href="./#privacy">what it asks for</a> on the front page.</p>
+
+    <h3>Install</h3>
+
+    <!-- The Homebrew block ships commented out on purpose: there is no
+         gapmiss/homebrew-tap cask for Driftwood yet, and a page that prints a
+         `brew install` line for a cask nobody published sends visitors to an
+         error. Uncomment this and the matching block on index.html in the same
+         commit that publishes the cask, so the two pages stay in step.
+    <h4>Homebrew</h4>
+    <pre><code class="language-bash">brew trust --cask gapmiss/tap/driftwood   # required for third-party taps
+brew install --cask gapmiss/tap/driftwood</code></pre>
+    <p>The cask installs the same ad-hoc-signed app the DMG carries, so the first-launch step below
+       applies either way.</p>
+    -->
+
+    <h4>The DMG</h4>
+    <p>Download <code>Driftwood.dmg</code> from
+       <a href="https://github.com/gapmiss/driftwood/releases/latest">the latest release</a>, open it,
+       and drag Driftwood to Applications. Then read the next heading before you double-click it.</p>
+
+    <h4>From source</h4>
+    <p>You need a Swift toolchain — Xcode or the Command Line Tools. There is no Xcode project;
+       the build is SPM behind a Makefile.</p>
+    <pre><code class="language-bash">git clone https://github.com/gapmiss/driftwood
+cd driftwood
+make run</code></pre>
+    <p><code>make run</code> builds the app, assembles <code>.build/Driftwood.app</code> with its
+       <code>Info.plist</code> and an ad-hoc signature, and opens it. A build from source is not
+       quarantined, so none of the Gatekeeper steps below apply to it.</p>
+
+    <h3>The first launch is blocked, and that is expected</h3>
+
+    <p>Driftwood is signed ad-hoc rather than notarized, so macOS refuses to open it the first time
+       with a message about it being damaged or from an unidentified developer. Nothing is damaged.
+       The app has a valid signature; it has not been through Apple's notary service. Unblocking it
+       is a one-time step, and which step depends on your macOS version.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Your macOS</th><th>What to do, once</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>15 (Sequoia) and later</td>
+            <td>Double-click Driftwood and let it be blocked. Open System Settings &rarr; Privacy
+                &amp; Security, scroll to Security, and click <strong>Open Anyway</strong> next to
+                the message about Driftwood. Confirm with your password or Touch ID.</td>
+          </tr>
+          <tr>
+            <td>14 (Sonoma)</td>
+            <td>Right-click Driftwood in Applications, choose <strong>Open</strong>, then
+                <strong>Open</strong> again in the dialog.</td>
+          </tr>
+          <tr>
+            <td>Either, from a terminal</td>
+            <td><code>xattr -dr com.apple.quarantine /Applications/Driftwood.app</code> removes the
+                quarantine flag, after which the app opens normally.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Where the app is once it is running</h3>
+
+    <p>Nowhere you can see. Driftwood has no Dock icon, no menu bar item and no window until you ask
+       for one. Press
+       <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> and the panel
+       appears with the keyboard already in it. Press it again and the panel goes away.</p>
+
+    <p>The panel and its right-click menu are the whole interface. Right-click anywhere in the panel
+       for themes, opacity, tabs and Quit — there is no preferences window to look for.</p>
+
+    <p>If the panel will not appear at all and you want the app gone, quit it from a terminal:</p>
+    <pre><code class="language-bash">pkill -x Driftwood</code></pre>
+    <p>That is also the answer if a hotkey conflict has left you with no way to summon the panel; see
+       <a href="#troubleshooting">Troubleshooting</a>.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="panel">
+    <p class="kicker">Core</p>
+    <h2>The panel</h2>
+
+    <h3>Summon and dismiss</h3>
+
+    <p><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> shows the panel,
+       and hides it again if it is already up.
+       <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>F</kbd></span> only ever shows
+       it. The difference matters when you are not sure whether the panel is already on screen:
+       <code>toggle</code> would put it away, and <code>focus</code> brings it forward either way.</p>
+
+    <h3>The app behind never loses focus</h3>
+
+    <p>Summon the panel and it takes your keystrokes, but the app you were working in stays the
+       frontmost app. Its title bar stays lit and its text cursor stays where you left it. Dismiss
+       the panel and you are back where you were, with nothing to click on first.</p>
+
+    <p>Driftwood asks for no Accessibility permission to do this, and macOS never prompts you for
+       one.</p>
+
+    <h3>Moving and resizing</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>To</th><th>Do</th></tr></thead>
+        <tbody>
+          <tr><td>Move the panel</td>
+              <td>Drag the empty part of the tab strip, or hold
+                  <span class="keys"><kbd>&#x2318;</kbd></span> and drag anywhere in the panel.</td></tr>
+          <tr><td>Resize</td>
+              <td>Drag any edge or corner. The grab target is the outer 6 points, which is why a drag
+                  that starts on text selects text instead.</td></tr>
+          <tr><td>Put it back</td>
+              <td>Reset Position in the right-click menu returns it to 720&times;360, centred on the
+                  main display.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>At the corners the cursor shows a horizontal resize arrow rather than a diagonal one. Drag it
+       anyway — a corner drag resizes in both directions.</p>
+
+    <p>The panel will not shrink below 20 columns by 2 rows, so its smallest size moves with the font
+       size.</p>
+
+    <h3>It comes back where you left it</h3>
+
+    <p>Driftwood saves the panel's size and position shortly after you stop moving or resizing it,
+       and puts the panel back there at the next launch. The saved position is checked against the
+       displays you have at that moment, which may not be the ones you had:</p>
+
+    <ul>
+      <li>Saved on a display that no longer exists &rarr; reset to the default size and position.</li>
+      <li>Hanging off the edge of a display that does exist &rarr; <em>slid back</em> into view, at
+          the same size. It is never resized to fit.</li>
+      <li>Less than 80 points of it left showing &rarr; reset, rather than left somewhere you would
+          have to hunt for it.</li>
+    </ul>
+
+    <h3>Always on Top and Show in Full Screen</h3>
+
+    <p>Both are in the right-click menu and both ship on. <strong>Always on Top</strong> keeps the
+       panel above other windows; turning it off lets other windows cover it. <strong>Show in Full Screen</strong> lets the panel appear over an app
+       that has taken the whole screen; turning it off means a full-screen app hides it.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="tabs">
+    <p class="kicker">Core</p>
+    <h2>Tabs</h2>
+
+    <p>Each tab is its own login shell, with its own scrollback and its own working directory. A
+       background tab keeps running; it just draws nothing.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Keys</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>T</kbd></span></td><td>New tab</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>W</kbd></span></td><td>Close the current tab</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>&#x21E7;</kbd><kbd>]</kbd></span> /
+                  <span class="keys"><kbd>&#x2318;</kbd><kbd>&#x21E7;</kbd><kbd>[</kbd></span></td>
+              <td>Next tab / previous tab. Both wrap around.</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>1</kbd></span>&hellip;<span class="keys"><kbd>&#x2318;</kbd><kbd>9</kbd></span></td>
+              <td>Jump to a tab by position</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>N</kbd></span></td>
+              <td>Summon the panel <em>and</em> open a tab in it, from any app</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The strip hides itself at one tab</h3>
+
+    <p>The tab strip appears when there are two or more tabs and disappears when there is one, so a
+       single-tab panel is nothing but terminal and you get that row of height back. It surprises
+       people the first time; it is not a bug.</p>
+
+    <h3>A tab's name</h3>
+
+    <p>A tab shows whatever the shell last reported through the title escape sequence (OSC 0 or
+       OSC 2) — which is what your prompt sets when it sets a window title. Failing that it shows the
+       last path component of the working directory the shell reported, and failing that the name of
+       the shell itself, so a stock <code>zsh</code> tab is called <code>zsh</code>.</p>
+
+    <h3>A new tab starts where the old one is, if your shell says so</h3>
+
+    <p>A new tab inherits the active tab's working directory only when the shell has reported it
+       through OSC 7. A stock <code>zsh</code> with no prompt framework never sends that, so the
+       fallback is your home directory. This is the common case, not an error.</p>
+
+    <p>To make <code>zsh</code> report it, add a prompt hook to <code>~/.zshrc</code>:</p>
+
+    <pre><code class="language-bash"># Report the working directory to the terminal on every prompt (OSC 7).
+precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
+
+    <p>Prompt frameworks including Powerlevel10k, Starship and Oh My Zsh's default setup already do
+       this, in which case there is nothing to add. Fish and recent bash setups on macOS emit it too.</p>
+
+    <h3>Closing the last tab hides the panel</h3>
+
+    <p>It does not quit Driftwood. The next
+       <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> brings the panel
+       back with a fresh shell in it. To actually quit, use Quit in the right-click menu or
+       <span class="keys"><kbd>&#x2318;</kbd><kbd>Q</kbd></span>.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="themes">
+    <p class="kicker">Appearance</p>
+    <h2>Themes &amp; fonts</h2>
+
+    <p>Four themes ship with the app and appear under Theme &#x25B8; in the right-click menu. Each
+       sets all sixteen ANSI colors plus five roles of its own: the panel background (with its own
+       alpha), the default foreground, the cursor, the selection highlight and the tab strip's text.</p>
+
+    <!-- Built from themes.js, which `make site` generates from the app's own
+         TerminalTheme.swift, so these swatches cannot drift from what you get.
+         Each swatch carries its hex value as text, not color alone. -->
+    <div id="theme-swatches" class="swatches">
+      <p class="build-note">The palettes are drawn from the app's own theme data, which needs
+         JavaScript. The hex values are in <a href="https://github.com/gapmiss/driftwood/blob/main/Sources/Driftwood/Terminal/TerminalTheme.swift">TerminalTheme.swift</a>.</p>
+    </div>
+
+    <h3>Your own themes</h3>
+
+    <p>Add a <code>terminalThemes</code> array to <code>config.json</code> and your themes join the
+       built-ins in the Theme menu. Each entry needs an <code>id</code>, a <code>title</code>, and a
+       <code>colors</code> object carrying <strong>all sixteen</strong> of <code>ansi0</code>
+       through <code>ansi15</code>. The five non-ANSI roles are optional and inherit from Driftwood
+       Night when you leave them out. Values are <code>#RRGGBB</code> or <code>#RRGGBBAA</code>.</p>
+
+    <p>A theme missing even one ANSI color is rejected whole — it will not appear in the Theme menu
+       at all, rather than loading with a gap in it. Turn on <code>"debug": true</code> to see which
+       theme was rejected and why.</p>
+
+    <p>A complete example, Solarized Dark, which you can paste as it stands:</p>
+
+    <pre><code class="language-json">{
+  "terminalThemes": [
+    {
+      "id": "solarized-dark",
+      "title": "Solarized Dark",
+      "colors": {
+        "ansi0":  "#073642", "ansi1":  "#dc322f",
+        "ansi2":  "#859900", "ansi3":  "#b58900",
+        "ansi4":  "#268bd2", "ansi5":  "#d33682",
+        "ansi6":  "#2aa198", "ansi7":  "#eee8d5",
+        "ansi8":  "#002b36", "ansi9":  "#cb4b16",
+        "ansi10": "#586e75", "ansi11": "#657b83",
+        "ansi12": "#839496", "ansi13": "#6c71c4",
+        "ansi14": "#93a1a1", "ansi15": "#fdf6e3",
+
+        "background": "#002b36d9",
+        "foreground": "#839496",
+        "cursor":     "#93a1a1",
+        "selection":  "#073642aa",
+        "tabBarText": "#93a1a1"
+      }
+    }
+  ]
+}</code></pre>
+
+    <p>The two hex digits on the end of <code>background</code> are its alpha: <code>d9</code> is
+       about 85% opaque, and the panel's blur shows through the rest. The Opacity menu multiplies
+       that number rather than replacing it, so a theme that wants to be translucent stays relatively
+       translucent at every opacity setting.</p>
+
+    <h3>Changing one color: <code>terminalPalette</code></h3>
+
+    <p>Use <code>terminalPalette</code> to change individual colors on top of whichever theme is
+       selected, without writing a whole theme. A value that does not parse costs you that one color
+       and nothing else.</p>
+
+    <pre><code class="language-json">{
+  "terminalPalette": {
+    "ansi1": "#ff5f56",
+    "cursor": "#72d6cf"
+  }
+}</code></pre>
+
+    <h3>The role names</h3>
+
+    <p>The same names work in a custom theme's <code>colors</code> and in
+       <code>terminalPalette</code>.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Role</th><th>Is</th></tr></thead>
+        <tbody>
+          <tr><td><code>ansi0</code>&hellip;<code>ansi7</code></td>
+              <td>The normal colors, in order: black, red, green, yellow, blue, magenta, cyan,
+                  white.</td></tr>
+          <tr><td><code>ansi8</code>&hellip;<code>ansi15</code></td>
+              <td>The bright variants of the same eight, in the same order.</td></tr>
+          <tr><td><code>background</code></td><td>The panel's tint, alpha included.</td></tr>
+          <tr><td><code>foreground</code></td><td>Text with no color of its own.</td></tr>
+          <tr><td><code>cursor</code></td><td>The block cursor.</td></tr>
+          <tr><td><code>selection</code></td><td>The highlight behind selected text. Give it an alpha.</td></tr>
+          <tr><td><code>tabBarText</code></td><td>Tab titles. The strip's own fill is derived from
+                  <code>background</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p>A palette decides what an ANSI color <em>code</em> renders as. It does not decide
+         <em>which</em> code your prompt asks for. If your prompt is the wrong color in Driftwood, it
+         is asking for a color number that your theme paints differently — the prompt's own
+         configuration lives in your shell config and behaves the same way in every terminal.</p>
+    </div>
+
+    <h3>Fonts</h3>
+
+    <p><code>fontNames</code> is a list of preferred fonts, best first. The first name that is
+       actually installed wins; the rest are ignored. The default list is:</p>
+
+    <pre><code class="language-json">{
+  "fontNames": [
+    "MesloLGS NF",
+    "MesloLGS Nerd Font",
+    "Hack Nerd Font",
+    "FiraCode Nerd Font",
+    "JetBrainsMono Nerd Font",
+    "Menlo"
+  ]
+}</code></pre>
+
+    <p>The Nerd Fonts come first because prompt themes like Powerlevel10k draw their separators and
+       icons from glyphs no stock macOS font carries. Install one of them if your prompt uses icons;
+       without it, those characters render as empty boxes. Menlo is the last resort and ships with
+       macOS, so the list always resolves to something.</p>
+
+    <div class="callout">
+      <p><strong>A font name that is not installed is skipped silently.</strong> macOS returns
+         nothing for an unknown font name rather than raising an error, so a typo costs you the font
+         and says nothing about it. Set <code>"debug": true</code> and the log records which name
+         actually resolved.</p>
+    </div>
+
+    <p>An empty list falls back to the defaults rather than leaving you with no font.</p>
+
+    <h3>Font size and opacity</h3>
+
+    <p>Both are fixed steps rather than sliders, and the current one is checkmarked in the menu.
+       Font Size &#x25B8; offers 10, 11, 12, 13, 14 and 16 point, and starts at 12.
+       <span class="keys"><kbd>&#x2318;</kbd><kbd>+</kbd></span> and
+       <span class="keys"><kbd>&#x2318;</kbd><kbd>&#x2212;</kbd></span> step through the same list and
+       stop at each end rather than wrapping. Opacity &#x25B8; offers 100%, 90%, 80%, 70% and 50%,
+       each multiplied into the theme's own background alpha.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="quick-commands">
+    <p class="kicker">Automation</p>
+    <h2>Quick commands</h2>
+
+    <p>A quick command is a line of shell you have saved, reachable from the
+       <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>K</kbd></span> palette, from the
+       Quick Commands &#x25B8; submenu, and optionally from a global hotkey of its own.</p>
+
+    <pre><code class="language-json">{
+  "quickCommands": [
+    {
+      "id": "logs",
+      "title": "Tail logs",
+      "command": "tail -f /tmp/app.log",
+      "hotkey": "control+option+1"
+    },
+    {
+      "id": "status",
+      "title": "Git status",
+      "command": "git status",
+      "hotkey": "control+option+2",
+      "run": true
+    },
+    { "id": "list", "title": "List files", "command": "ls" }
+  ]
+}</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Key</th><th>Required</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>Yes</td>
+              <td>Any string, unique within the list. An entry with an empty or duplicate
+                  <code>id</code> is dropped.</td></tr>
+          <tr><td><code>title</code></td><td>No</td>
+              <td>What the palette and the menu show. Left out, the command text is used as the
+                  title.</td></tr>
+          <tr><td><code>command</code></td><td>Yes</td>
+              <td>The line to type. An entry with an empty command is dropped.</td></tr>
+          <tr><td><code>hotkey</code></td><td>No</td>
+              <td>Same grammar as the app's own bindings. Without one, the command is still in the
+                  palette and the menu.</td></tr>
+          <tr><td><code>run</code></td><td>No</td>
+              <td>Whether to press Return after typing. <strong>Defaults to false.</strong> Read the
+                  next heading before setting it.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="run-flag">The <code>run</code> flag</h3>
+
+    <div class="callout warn">
+      <p><strong><code>run</code> defaults to false, and that is a safety decision rather than a
+         style one.</strong></p>
+      <p>With <code>"run": true</code>, pressing that command's hotkey executes the command
+         verbatim, in a real login shell, with your full environment, with no confirmation — and
+         possibly while the panel is hidden, so the window that would show you what just happened is
+         not even on screen.</p>
+      <p>Left at its default, the command is typed at the prompt and left sitting there for you to
+         read and run yourself. Opting in is one word in <code>config.json</code>. Opting out after
+         an <code>rm -rf</code> fired from a keystroke is not.</p>
+    </div>
+
+    <p>The panel is always summoned before a quick command fires, whichever way <code>run</code> is
+       set, so a command never runs into a window you cannot see.</p>
+
+    <h3>The palette</h3>
+
+    <p><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>K</kbd></span> opens the palette
+       over the panel, and pressing it again closes it.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Keys</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td>Type</td>
+              <td>Filters, case-insensitively, against both the title and the command text — so a
+                  command whose title you have forgotten is found by typing part of the command
+                  itself.</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2191;</kbd></span> /
+                  <span class="keys"><kbd>&#x2193;</kbd></span></td><td>Move the highlight</td></tr>
+          <tr><td><span class="keys"><kbd>&#x21A9;</kbd></span></td>
+              <td>Fire the highlighted command and close the palette</td></tr>
+          <tr><td><span class="keys"><kbd>&#x238B;</kbd></span></td><td>Close it, changing nothing</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Every row is labeled <strong>runs</strong> or <strong>types</strong>, so which of the two
+       things Return is about to do is visible before you press it. You can try this on the
+       <a href="./">front page</a>: the hero re-creates the palette with the same three sample
+       commands.</p>
+
+    <h3>When an entry is wrong</h3>
+
+    <p>A bad hotkey costs the hotkey; a bad command costs the entry. An entry whose
+       <code>hotkey</code> does not parse, or collides with one of Driftwood's own bindings or with
+       another quick command, keeps working from the palette and the menu with its hotkey ignored.
+       Two bindings collide when they are the same keystroke, however you spelled them, so
+       <code>ctrl+alt+1</code> and <code>control+option+1</code> are a collision. Every rejection is
+       logged under <code>"debug": true</code>.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="configuration">
+    <p class="kicker">Settings</p>
+    <h2>Configuration</h2>
+
+    <p>Two files, both in <code>~/Library/Application Support/Driftwood/</code>.</p>
+
+    <h3><code>config.json</code> — yours</h3>
+
+    <p>Driftwood writes this file exactly once in its life, to create it with the defaults on first
+       launch. There is no other write path, so nothing the app does can clobber a hand-edited
+       setting. <strong>Changes take effect on the next launch;</strong> nothing re-reads the file
+       while the app is running.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>shell</code></td><td>string</td><td><code>"/bin/zsh"</code></td>
+            <td>The shell each tab launches, and the value exported to it as <code>$SHELL</code>.
+                Both come from this one setting, so they cannot disagree. An empty string falls back
+                to <code>/bin/zsh</code>.</td>
+          </tr>
+          <tr>
+            <td><code>shellArguments</code></td><td>array of string</td><td><code>["-l"]</code></td>
+            <td>Arguments passed to the shell. <code>-l</code> makes it a login shell, which is what
+                sources the profile a normal terminal tab would.</td>
+          </tr>
+          <tr>
+            <td><code>fontNames</code></td><td>array of string</td>
+            <td>Five Nerd Fonts, then <code>"Menlo"</code></td>
+            <td>Preferred fonts, best first; the first installed name wins. An empty list falls back
+                to the defaults.</td>
+          </tr>
+          <tr>
+            <td><code>hotkeys</code></td><td>object</td><td>See <a href="#hotkeys">Hotkeys</a></td>
+            <td>The five global bindings.</td>
+          </tr>
+          <tr>
+            <td><code>terminalPalette</code></td><td>object</td><td>absent</td>
+            <td>Per-role color overrides on top of the selected theme. An unparseable value costs
+                that one role.</td>
+          </tr>
+          <tr>
+            <td><code>terminalThemes</code></td><td>array of object</td><td>absent</td>
+            <td>Your own themes, added to the Theme menu. Each needs all sixteen ANSI colors.</td>
+          </tr>
+          <tr>
+            <td><code>quickCommands</code></td><td>array of object</td><td>absent</td>
+            <td>Saved commands for the palette, the menu and their own hotkeys.</td>
+          </tr>
+          <tr>
+            <td><code>debug</code></td><td>boolean</td><td><code>false</code></td>
+            <td>Writes a log to <code>~/Library/Logs/Driftwood/driftwood.log</code>: the resolved
+                font, hotkey registrations and failures, rejected themes and quick commands, and the
+                focus state on every summon.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Every key is optional. A key you delete falls back to its default, and a key Driftwood does
+       not recognize is ignored, so a config written for an older build never stops the app from
+       starting, and an upgrade never asks you to migrate the file.</p>
+
+    <h3><code>state.json</code> — the app's</h3>
+
+    <p>This one holds what the right-click menu changes, and Driftwood rewrites it several times in a
+       session — dragging the panel alone rewrites it. <strong>Do not hand-edit it</strong>, since
+       the app will overwrite what you write. Everything you set by hand lives in
+       <code>config.json</code>, which Driftwood never touches.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Key</th><th>Default</th><th>Is</th></tr></thead>
+        <tbody>
+          <tr><td><code>frame</code></td><td>absent</td>
+              <td><code>{x, y, width, height}</code> in screen coordinates, written after a move or
+                  resize, and validated against the displays you actually have at the next
+                  launch.</td></tr>
+          <tr><td><code>theme</code></td><td><code>"driftwood-night"</code></td>
+              <td>The selected theme's id. An id that no longer exists falls back to the default
+                  rather than failing.</td></tr>
+          <tr><td><code>fontSize</code></td><td><code>12</code></td>
+              <td>Snapped to the nearest preset when read.</td></tr>
+          <tr><td><code>opacity</code></td><td><code>1.0</code></td>
+              <td>Clamped to 0.2&ndash;1.0, and multiplied into the theme's own background alpha.</td></tr>
+          <tr><td><code>alwaysOnTop</code></td><td><code>true</code></td><td>Keep the panel above other windows.</td></tr>
+          <tr><td><code>showInFullScreen</code></td><td><code>true</code></td><td>Show the panel over full-screen apps.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>A file that will not parse is moved aside, never overwritten</h3>
+
+    <p>If either file becomes unreadable — a stray comma, a truncated write — Driftwood renames it to
+       <code>config.json.bak</code> (or <code>state.json.bak</code>) and starts from the defaults. If
+       a <code>.bak</code> is already there, the next one becomes <code>.bak.1</code>, then
+       <code>.bak.2</code>, and so on, so an earlier rescue is never clobbered by a later one.
+       Nothing you wrote is deleted; it is sitting next to the original path under a new name.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="hotkeys">
+    <p class="kicker">Shortcuts</p>
+    <h2>Hotkey reference</h2>
+
+    <p>Five global bindings, all editable in <code>config.json</code>, all registered system-wide so
+       they work from whatever app you are in.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Binding</th><th>Default</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>toggle</code></td>
+            <td><code data-hotkey-default="toggle">control+option+t</code></td>
+            <td>Show the panel, or hide it if it is already showing.</td>
+          </tr>
+          <tr>
+            <td><code>focus</code></td>
+            <td><code data-hotkey-default="focus">control+option+f</code></td>
+            <td>Show the panel and take the keyboard, without a second press hiding it.</td>
+          </tr>
+          <tr>
+            <td><code>newTab</code></td>
+            <td><code data-hotkey-default="newTab">control+option+n</code></td>
+            <td>Show the panel and open a new tab in it.</td>
+          </tr>
+          <tr>
+            <td><code>commands</code></td>
+            <td><code data-hotkey-default="commands">control+option+k</code></td>
+            <td>Open the quick-command palette, or close it if it is open.</td>
+          </tr>
+          <tr>
+            <td><code>quit</code></td>
+            <td><code data-hotkey-default="quit">""</code> — disabled</td>
+            <td>Quit Driftwood, ending every shell in every tab. Off by default; set it only if you
+                want that on a keystroke.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The syntax</h3>
+
+    <p>A binding is modifiers and one key, joined by <code>+</code>, in any order.
+       Case and spaces around the <code>+</code> are ignored, so
+       <code>"Control + Option + T"</code> and <code>"ctrl+alt+t"</code> are the same binding.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Part</th><th>Accepted spellings</th></tr></thead>
+        <tbody>
+          <tr><td>Modifiers</td>
+              <td><code>control</code> or <code>ctrl</code>, <code>option</code> or <code>alt</code>,
+                  <code>command</code> or <code>cmd</code>, <code>shift</code></td></tr>
+          <tr><td>Keys</td>
+              <td><code>a</code>&ndash;<code>z</code>, <code>0</code>&ndash;<code>9</code>,
+                  <code>f1</code>&ndash;<code>f12</code>, <code>space</code>, <code>tab</code>,
+                  <code>escape</code> / <code>esc</code>, <code>return</code> / <code>enter</code>,
+                  <code>delete</code> / <code>backspace</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>At least one of <span class="keys"><kbd>&#x2303;</kbd></span>
+        <span class="keys"><kbd>&#x2325;</kbd></span>
+        <span class="keys"><kbd>&#x2318;</kbd></span> is required</h3>
+
+    <p>A binding must carry control, option or command. Shift does not count on its own, and a
+       binding with no modifier at all is refused. Shift alongside another modifier is fine:
+       <code>"control+shift+k"</code> is a valid binding.</p>
+
+    <p>A global hotkey takes that keystroke away from every other app for as long as Driftwood is
+       running, which is why a bare key is not allowed — <code>"space"</code> would cost you the
+       space bar everywhere.</p>
+
+    <h3>Turning one off</h3>
+
+    <p>Set it to <code>""</code>, <code>"none"</code> or <code>"disabled"</code>. All three mean the
+       same thing and none of them is logged as an error. A binding that is malformed rather than
+       disabled <em>is</em> logged, so a typo is distinguishable from a decision.</p>
+
+    <pre><code class="language-json">{
+  "hotkeys": {
+    "toggle": "control+option+space",
+    "focus": "none",
+    "newTab": "control+option+n",
+    "commands": "control+option+k",
+    "quit": ""
+  }
+}</code></pre>
+
+    <h3>If a hotkey does nothing</h3>
+
+    <p>macOS gives a global hotkey to whichever app registered it first, and tells the loser nothing.
+       If another app already holds your binding, Driftwood's registration fails quietly. Change the
+       binding in <code>config.json</code>, or quit the other app to find out which one it is.
+       <code>"debug": true</code> logs every registration and every failure with its status code.</p>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="menu">
+    <p class="kicker">Reference</p>
+    <h2>Menu reference</h2>
+
+    <h3>The right-click menu</h3>
+
+    <p>Right-click anywhere in the panel. This is the whole settings surface — there is no
+       preferences window and no menu bar item — and everything in it is reachable with the arrow
+       keys.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td>Theme &#x25B8;</td>
+              <td>The four built-ins and any theme you added, with a checkmark on the current
+                  one.</td></tr>
+          <tr><td>Font Size &#x25B8;</td><td>10, 11, 12, 13, 14, 16 point.</td></tr>
+          <tr><td>Opacity &#x25B8;</td>
+              <td>100%, 90%, 80%, 70%, 50%, multiplied into the theme's own background alpha.</td></tr>
+          <tr><td>Always on Top</td><td>Keep the panel above other windows. On by default.</td></tr>
+          <tr><td>Show in Full Screen</td><td>Show the panel over full-screen apps. On by default.</td></tr>
+          <tr><td>Launch at Login</td>
+              <td>Registers Driftwood to start with the session. Off by default, and it outlives the
+                  app bundle — turn it off before you delete the app.</td></tr>
+          <tr><td>New Tab</td><td>Opens a tab. Shows the <code>newTab</code> hotkey next to it.</td></tr>
+          <tr><td>Quick Commands &#x25B8;</td>
+              <td>Your saved commands, each with its hotkey, then a Show Palette&hellip; row. The whole
+                  submenu is absent when you have no quick commands.</td></tr>
+          <tr><td>Reset Position</td><td>Back to 720&times;360, centred on the main display.</td></tr>
+          <tr><td>Edit Configuration&hellip;</td>
+              <td>Opens <code>config.json</code> in whichever app owns <code>.json</code>.</td></tr>
+          <tr><td>Check for Updates&hellip;</td>
+              <td>Opens the GitHub releases page in your browser. Driftwood makes no network call of
+                  its own; comparing the version is the browser's job and yours.</td></tr>
+          <tr><td>Driftwood <em>version</em></td><td>Not clickable. Says which build this is.</td></tr>
+          <tr><td>Quit Driftwood</td><td>Quits, ending every shell in every tab.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Key equivalents</h3>
+
+    <p>These work whenever the panel has the keyboard. There is no menu bar to find them in;
+       Driftwood never becomes the frontmost app, so its menu bar never draws.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Keys</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>C</kbd></span> /
+                  <span class="keys"><kbd>&#x2318;</kbd><kbd>V</kbd></span> /
+                  <span class="keys"><kbd>&#x2318;</kbd><kbd>A</kbd></span></td>
+              <td>Copy, paste, select all</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>T</kbd></span> /
+                  <span class="keys"><kbd>&#x2318;</kbd><kbd>W</kbd></span></td>
+              <td>New tab / close tab</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>&#x21E7;</kbd><kbd>]</kbd></span> /
+                  <span class="keys"><kbd>&#x2318;</kbd><kbd>&#x21E7;</kbd><kbd>[</kbd></span></td>
+              <td>Next tab / previous tab</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>1</kbd></span>&hellip;<span class="keys"><kbd>&#x2318;</kbd><kbd>9</kbd></span></td>
+              <td>Jump to a tab</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>+</kbd></span> /
+                  <span class="keys"><kbd>&#x2318;</kbd><kbd>&#x2212;</kbd></span></td>
+              <td>Font size up / down, through the presets</td></tr>
+          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>Q</kbd></span></td><td>Quit</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="troubleshooting">
+    <p class="kicker">Help</p>
+    <h2>Troubleshooting</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Symptom</th><th>Cause and fix</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>The hotkey does nothing</td>
+            <td>Another app registered it first. macOS gives a global hotkey to whoever asked first
+                and says nothing to the loser. Change the binding in <code>config.json</code>;
+                <code>"debug": true</code> logs the failure.</td>
+          </tr>
+          <tr>
+            <td>I can't find the panel</td>
+            <td><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span>. If that
+                does nothing, the row above is why. If the panel is somewhere off-screen, right-click
+                it if you can reach any part of it and choose Reset Position; otherwise
+                <code>pkill -x Driftwood</code> and relaunch, which re-validates the saved
+                frame.</td>
+          </tr>
+          <tr>
+            <td>A theme I added doesn't appear</td>
+            <td>It was rejected when the app read your config. A custom theme needs all sixteen of
+                <code>ansi0</code> through <code>ansi15</code>, and one missing color rejects the
+                whole theme. <code>"debug": true</code> logs which theme and which reason.</td>
+          </tr>
+          <tr>
+            <td>My prompt's icons are boxes</td>
+            <td>The font you asked for is not installed, and a missing name is skipped in silence.
+                Install a Nerd Font, or set <code>"debug": true</code> and read which name actually
+                resolved.</td>
+          </tr>
+          <tr>
+            <td>Pasted text is black until I type</td>
+            <td>A known bug in the terminal component Driftwood uses, not fixable from here. Any
+                redraw — typing a character, scrolling — restores the color.</td>
+          </tr>
+          <tr>
+            <td>The panel looks opaque whatever I set</td>
+            <td>Almost always a custom theme whose <code>background</code> is a six-digit
+                <code>#RRGGBB</code>, which means fully opaque. Opacity multiplies into the theme's
+                own alpha rather than replacing it, so such a theme is a solid slab at 100% and only
+                starts letting anything through at 90% and below. Give the color an eight-digit
+                <code>#RRGGBBAA</code> value instead — the four built-ins sit between
+                <code>a6</code> and <code>e0</code>, and are translucent at every setting.</td>
+          </tr>
+          <tr>
+            <td>A completion script or prompt behaves differently than in Terminal.app</td>
+            <td>Check <code>echo&nbsp;$SHELL</code> first; it names the shell in your
+                <code>shell</code> setting. If that is right, check your profile is being read: a
+                tab is a login shell only while <code>shellArguments</code> keeps
+                <code>-l</code>.</td>
+          </tr>
+          <tr>
+            <td>A quick command's hotkey is ignored</td>
+            <td>It failed to parse, or it collides with one of Driftwood's own bindings or with
+                another quick command. The command itself still works from the palette and the menu.
+                <code>ctrl+alt+1</code> and <code>control+option+1</code> are the same keystroke, so
+                two entries spelled that way collide.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="build-note">Almost every row above ends in the same place. Set
+       <code>"debug": true</code> in <code>config.json</code>, relaunch, and read the log:</p>
+
+    <pre><code class="language-bash">tail -f ~/Library/Logs/Driftwood/driftwood.log</code></pre>
+  </section>
+
+  <!-- ================================================================== -->
+  <section id="uninstall">
+    <p class="kicker">Help</p>
+    <h2>Uninstall</h2>
+
+    <ol class="steps">
+      <li><strong>Turn off Launch at Login first</strong>, if you ever turned it on. Right-click the
+          panel and uncheck it. The login registration is held by macOS and outlives the app bundle,
+          so deleting the app first leaves a registration behind that points at nothing.</li>
+      <li>Quit Driftwood from the right-click menu, or run <code>pkill -x Driftwood</code>.</li>
+      <li>Delete the app from Applications.</li>
+      <li>Delete its settings and its log, if you want them gone:</li>
+    </ol>
+
+    <pre><code class="language-bash">rm -rf ~/Library/Application\ Support/Driftwood
+rm -rf ~/Library/Logs/Driftwood</code></pre>
+
+    <p>That is everything Driftwood writes. There are no preferences in <code>defaults</code>, no
+       launch agent of its own, no receipts and nothing in <code>/Library</code>.</p>
+  </section>
+
+</main>
+
+<footer>
+  <nav class="footer-links">
+    <a href="./">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 1 7h2v7h4v-4h2v4h4V7h2z"/></svg>
+      Home
+    </a>
+    <a href="https://github.com/gapmiss/driftwood">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      Source on GitHub
+    </a>
+    <a href="https://github.com/gapmiss/driftwood/releases">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M2 2h5.6c.4 0 .78.16 1.06.44l5.9 5.9a1.5 1.5 0 0 1 0 2.12l-4.1 4.1a1.5 1.5 0 0 1-2.12 0l-5.9-5.9A1.5 1.5 0 0 1 2 7.6V2zm3.25 4.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z"/></svg>
+      Releases
+    </a>
+  </nav>
+  <p class="version">
+    Driftwood <a href="https://github.com/gapmiss/driftwood/releases/latest">0.1.0</a>
+  </p>
+  <p class="legal">
+    MIT licensed. The terminal is
+    <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a> by Miguel de Icaza.
+  </p>
+</footer>
+
+<script src="mode.js"></script>
+<script src="themes.js"></script>
+<script src="driftwood.js"></script>
+<script src="prism.min.js"></script>
+<script src="prism-bash.min.js"></script>
+<script src="prism-json.min.js"></script>
+<script src="copy-code.js"></script>
+</body>
+</html>

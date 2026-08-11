@@ -1,0 +1,90 @@
+/* Prism theme built from Driftwood Night's ANSI palette, so a code block on
+   this site is colored the way the same text would be in the app's default
+   theme. The hex values are copied by hand here rather than read from
+   themes.js, because Prism is a stylesheet and cannot see a JS global — same
+   hand-copy the app icon's script makes, and the same caveat: change
+   driftwoodNight and this does not follow. */
+
+:root,
+:root[data-theme="dark"] {
+  --tok-comment: #4b5763;   /* bright black — slate */
+  --tok-string: #6fbf87;    /* bright green */
+  --tok-keyword: #a98fc9;   /* bright magenta — dusk */
+  --tok-number: #e0ba69;    /* bright yellow — brass */
+  --tok-operator: #72d6cf;  /* bright cyan — the cursor color */
+  --tok-punct: #757990;
+  --tok-function: #5fa8d3;  /* bright blue */
+  --tok-property: #de6676;  /* bright red — port light */
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --tok-comment: #8a8478;
+    --tok-string: #2f7a4a;
+    --tok-keyword: #6b4a9c;
+    --tok-number: #9a6b12;
+    --tok-operator: #14615a;
+    --tok-punct: #7a7367;
+    --tok-function: #1f5f8a;
+    --tok-property: #b03030;
+  }
+}
+
+:root[data-theme="light"] {
+  --tok-comment: #8a8478;
+  --tok-string: #2f7a4a;
+  --tok-keyword: #6b4a9c;
+  --tok-number: #9a6b12;
+  --tok-operator: #14615a;
+  --tok-punct: #7a7367;
+  --tok-function: #1f5f8a;
+  --tok-property: #b03030;
+}
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata { color: var(--tok-comment); font-style: italic; }
+
+.token.punctuation { color: var(--tok-punct); }
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.constant,
+.token.symbol,
+.token.deleted { color: var(--tok-property); }
+
+.token.number { color: var(--tok-number); }
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted { color: var(--tok-string); }
+
+.token.operator,
+.token.entity,
+.token.url,
+.token.variable { color: var(--tok-operator); }
+
+.token.atrule,
+.token.attr-value,
+.token.keyword { color: var(--tok-keyword); }
+
+.token.function,
+.token.class-name { color: var(--tok-function); }
+
+.token.important,
+.token.bold { font-weight: 600; }
+.token.italic { font-style: italic; }

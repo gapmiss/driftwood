@@ -1,0 +1,573 @@
+/* The re-created Driftwood panel and the mock editor window behind it.
+   This file draws the panel and nothing else: no behavior and no palette.
+   driftwood.js paints a theme's colors onto the stage at load, and the theme
+   switcher is that same assignment run again with another theme.
+
+   Every color in the panel reads a --dw-* custom property. Those are set on
+   .stage by driftwood.js from themes.js, which `make site` generates from
+   TerminalTheme.swift, so no palette is hand-copied into this file and no
+   color here can disagree with the app.
+
+   The *measurements* are hand-copied, and that is a real drift risk with no
+   guard behind it. Each one names its source below. They are structural
+   numbers that have not changed since 0.1.0, and getting one wrong makes the
+   mock slightly wrong rather than broken, which is why this is a comment and
+   not a check.
+
+   The mock editor deliberately uses the site's own colors (--text, --border),
+   never a --dw-* one. It is a different application, and the whole point of
+   the hero is that the two windows are separate: Driftwood has the keyboard
+   while the editor stays active. Coloring both from one palette would erase
+   the distinction the image exists to make. */
+
+.stage {
+  position: relative;
+  height: 380px;
+  margin-top: 18px;
+}
+
+/* ---------- The mock editor, behind ---------- */
+
+/* It stays visually *active* the whole time the panel has the keyboard,
+   because that is the behavior the app exists for: a nonactivating panel takes
+   keystrokes without the app behind it deactivating. Nothing here dims, and
+   nothing should be added that does. */
+.editor {
+  position: absolute;
+  inset: 24px 40px 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  text-align: left;
+}
+
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(128, 128, 128, 0.06);
+}
+
+/* Traffic lights at full saturation, never the grey of an inactive window. */
+.editor-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: none;
+}
+.editor-dot.red { background: #ff5f57; }
+.editor-dot.amber { background: #febc2e; }
+.editor-dot.green { background: #28c840; }
+
+.editor-title {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* A <div> with `white-space: pre`, not a <pre>, even though <pre> is what this
+   content is. Everything on this site that styles or enhances code blocks
+   selects on the tag: style.css gives every <pre> a tinted background, a
+   border and a radius, copy-code.js appends a copy button to each one, and
+   Prism arrives in step 6. This is a picture of another application, not a
+   snippet on offer, and as a <pre> it collected all three. The tag is the
+   whole fix; the subtree is aria-hidden, so nothing is lost by it. */
+.editor-body {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  white-space: pre;
+  overflow: hidden;
+}
+
+/* Muted on purpose. The editor is scenery; the panel in front of it is the
+   subject, and syntax coloring bright enough to read as a real editor pulls
+   the eye off the terminal. */
+.editor-body .k { color: var(--accent); }
+.editor-body .s { color: var(--text-tertiary); }
+.editor-body .c { color: var(--text-tertiary); opacity: 0.7; }
+
+/* ---------- The panel, in front ---------- */
+
+/* 10px radius is AppDelegate's `cornerRadius`; blur(24px) stands in for the
+   NSVisualEffectView the tint sits on.
+
+   The background is the theme's own alpha multiplied by the opacity preset,
+   which is what `AppDelegate.applyTheme` does: the theme decides how
+   translucent it wants to be, and the Opacity menu moves that decision rather
+   than replacing it. That is why the alpha is published separately as
+   --dw-bg-alpha instead of the panel just using --dw-bg. */
+.dw-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(560px, 92%);
+  border-radius: 10px;
+  overflow: hidden;               /* the app needs masksToBounds for the same
+                                     reason: square corners over a rounded
+                                     window read as a rendering bug */
+  background: rgb(var(--dw-bg-rgb) / calc(var(--dw-bg-alpha) * var(--dw-opacity, 1)));
+  -webkit-backdrop-filter: var(--panel-blur);
+  backdrop-filter: var(--panel-blur);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  text-align: left;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+/* Closing the last tab hides the panel, the way the app does — ⌃⌥T brings it
+   back with a fresh shell. `inert` is what keeps the hidden panel out of the
+   tab order and away from the pointer; the class only handles the look. Not
+   `hidden`, which would cut the transition. */
+.dw-panel.is-hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+  pointer-events: none;
+}
+
+/* ---------- Tab strip ---------- */
+
+/* 22px is TerminalMetrics.tabBarHeight. The strip is the theme's background
+   color re-alphaed to 0.35 rather than a color of its own, which is what
+   TabBar.draw does — that is why themes.js's background arrives split into
+   --dw-bg (with its own alpha, for the panel) and --dw-bg-rgb (channels only,
+   so this rule can set a different alpha). */
+.dw-tabs {
+  display: flex;
+  align-items: stretch;
+  height: 22px;
+  background: rgb(var(--dw-bg-rgb) / 0.35);
+}
+
+/* The strip hides itself at one tab, which is SessionStack.showsTabBar —
+   `sessions.count > 1`. It surprises people the first time, so the mock has
+   to do it too. */
+.dw-tabs[hidden] { display: none; }
+
+/* Tabs share the strip evenly, capped at 180px and floored at 60px, from
+   TabBar.tabWidth. The tab and its close button are siblings rather than one
+   nested inside the other: both are real buttons, and a button inside a
+   button is invalid markup that browsers resolve by dropping one of them. */
+.dw-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 60px;
+  max-width: 180px;
+  font-size: 11px;                /* NSFont.systemFont(ofSize: 11) */
+  color: rgb(var(--dw-tab-text-rgb) / 0.55);
+  overflow: hidden;
+}
+
+.dw-tab.is-active {
+  background: rgb(var(--dw-tab-text-rgb) / 0.14);
+  color: var(--dw-tab-text);
+}
+
+.dw-tab-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 20px 0 8px;          /* 8px is TabBar.horizontalInset; the 20 on
+                                     the right is room for the close × */
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The close ×, drawn as two strokes so it stays crisp — the same reason
+   TabBar draws it with NSBezierPath instead of setting a glyph. 12px box,
+   4px from the tab's right edge. */
+.dw-close {
+  position: absolute;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.dw-close::before,
+.dw-close::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  width: 6px;
+  height: 1px;
+  background: rgb(var(--dw-tab-text-rgb) / 0.4);
+}
+.dw-close::before { transform: rotate(45deg); }
+.dw-close::after { transform: rotate(-45deg); }
+.dw-tab.is-active .dw-close::before,
+.dw-tab.is-active .dw-close::after {
+  background: rgb(var(--dw-tab-text-rgb) / 0.8);
+}
+
+/* The "+", 24px wide (TabBar.newTabButtonWidth). `margin-left: auto` pins it
+   to the right edge, which is where TabBar.newTabRect puts it — the gap it
+   leaves between the last tab and the "+" is the strip's empty region, and in
+   the app that region is the window's drag handle. */
+.dw-newtab {
+  position: relative;
+  width: 24px;
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.dw-newtab::before,
+.dw-newtab::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgb(var(--dw-tab-text-rgb) / 0.6);
+}
+.dw-newtab::before {
+  width: 9px;
+  height: 1px;
+  transform: translate(-50%, -50%);
+}
+.dw-newtab::after {
+  width: 1px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+}
+
+/* ---------- Terminal ---------- */
+
+/* 8px inset is TerminalMetrics.padding. The app's default is the 12pt font
+   preset; 13px here, because a browser at 100% zoom on a non-Retina display
+   renders 12px monospace a step smaller than macOS draws 12pt. */
+.dw-term {
+  position: relative;
+  padding: 8px;
+  height: 168px;
+  overflow-y: auto;
+  overscroll-behavior: contain;   /* scrolling to the end of the scrollback
+                                     must not then scroll the page */
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: var(--dw-font-size, 13px);
+  line-height: 1.45;
+  color: var(--dw-fg);
+  cursor: text;
+}
+
+/* pre-wrap belongs on the line, never on .dw-term. Set on the container it
+   also preserves the newline and indentation *between* the line elements in
+   the source, which renders as a blank line between every row of output —
+   the terminal ends up double-spaced for a reason invisible in the markup. */
+.dw-line {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* The prompt is an ANSI role, not a one-off value, so a theme switch recolors
+   it along with everything else. Output written by driftwood.js sets its
+   colors the same way, per segment, which is why `ls` and `git status` change
+   color with the theme. */
+.dw-prompt { color: var(--dw-ansi6); }
+
+/* The real <input>, laid over the prompt line and made invisible. It takes
+   the keystrokes; .dw-typed mirrors its value back out in the terminal's font
+   and color, and .dw-cursor draws the block. A text field styled to look like
+   a terminal would be simpler, but it cannot draw a block cursor and it would
+   render the typed text in the browser's idea of a form control.
+
+   Not display:none and not off-screen: it has to stay a real focusable field
+   at the place it appears, so that focus, an on-screen keyboard and a screen
+   reader all land on the prompt the visitor is looking at. */
+.dw-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  color: transparent;
+  caret-color: transparent;       /* the block below is the cursor; the
+                                     browser's own caret would be a second one */
+  background: none;
+  border: 0;
+  outline: none;
+}
+.dw-input::selection { background: var(--dw-selection); }
+
+.dw-inputline { position: relative; }
+
+/* A block cursor at the cursor color, matching SwiftTerm's default shape.
+   It hollows out when the shell does not have the keyboard, the way a real
+   terminal does — on this page that is the difference between "click here and
+   type" and "you are typing". */
+.dw-cursor {
+  display: inline-block;
+  width: 0.62em;
+  height: 1.1em;
+  vertical-align: text-bottom;
+  background: var(--dw-cursor);
+  animation: dw-blink 1.06s steps(1, end) infinite;
+}
+
+.dw-term:not(.is-focused) .dw-cursor {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--dw-cursor);
+  animation: none;
+}
+
+/* Keyboard focus has to be visible on the tab strip, where the buttons carry
+   no border of their own. */
+.dw-tab-btn:focus-visible,
+.dw-close:focus-visible,
+.dw-newtab:focus-visible {
+  outline: 1px solid var(--dw-cursor);
+  outline-offset: -1px;
+}
+
+/* ---------- The hidden-panel hint ---------- */
+
+/* The app leaves nothing on screen when the panel is hidden — the hotkey is
+   the only way back, and that is the whole point of it. A web page cannot
+   assume the visitor read the shortcut list, and a stage that has gone empty
+   with no way to refill it reads as a broken demo, so the hint carries a real
+   button as well as naming the key. */
+.stage-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 60px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.stage-hint[hidden] { display: none; }
+
+/* ---------- The right-click menu ---------- */
+
+/* An NSMenu is drawn by the system, not by the app, so this is the one part of
+   the re-creation that must NOT use the terminal palette: the real menu does
+   not change color when the theme does. It uses the site's own variables, the
+   way the mock editor does. There are still no color literals here. */
+.dw-menu {
+  position: absolute;
+  z-index: 6;
+  min-width: 234px;
+  margin: 0;
+  padding: 5px 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
+.dw-menu[hidden] { display: none; }
+
+/* A row that owns a submenu, and the submenu itself. The pair is wrapped so
+   the submenu can be positioned against its own row rather than against the
+   top of the menu. */
+.dw-menuwrap { position: relative; }
+
+/* A submenu opens to the right of its parent row, clamped back inside the
+   stage by driftwood.js when there is no room. */
+.dw-submenu {
+  top: 0;
+  left: 100%;
+  min-width: 150px;
+}
+
+.dw-menuitem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 12px 4px 26px;     /* 26 on the left is the checkmark column,
+                                     which NSMenu reserves whether or not any
+                                     row in the menu is checked */
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: default;
+}
+.dw-menuitem:hover,
+.dw-menuitem:focus {
+  background: var(--accent);
+  color: var(--bg);
+  outline: none;
+}
+
+/* Inert rows: everything the re-creation cannot honestly do — the three
+   checkmarked toggles, Reset Position, Edit Configuration…, Check for
+   Updates… and Quit. They are drawn dimmed and marked aria-disabled rather
+   than removed, because the menu is also the guide to what the real menu
+   contains. Arrow keys still land on them, which is how NSMenu behaves. */
+.dw-menuitem[aria-disabled="true"] { color: var(--text-tertiary); }
+.dw-menuitem[aria-disabled="true"]:hover,
+.dw-menuitem[aria-disabled="true"]:focus {
+  background: var(--code-bg);
+  color: var(--text-tertiary);
+}
+
+.dw-menuitem[aria-checked="true"]::before {
+  content: "\2713";
+  position: absolute;
+  left: 9px;
+}
+
+/* The key equivalent and the submenu arrow both sit at the right end. */
+.dw-menu-key {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.dw-menuitem[aria-haspopup="true"] .dw-menu-key { font-size: 11px; }
+
+.dw-menu-sep {
+  height: 1px;
+  margin: 5px 10px;
+  background: var(--border);
+}
+
+/* The version row: disabled in the app too, and here it also carries the one
+   sentence that says which rows above it are real. */
+.dw-menu-version {
+  padding: 4px 12px 4px 26px;
+  color: var(--text-tertiary);
+}
+.dw-menu-note {
+  padding: 2px 12px 4px 26px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
+}
+
+/* ---------- The command palette ---------- */
+
+/* 380px and the 10px radius are CommandPalette's own `.frame(width: 380)` and
+   `RoundedRectangle(cornerRadius: 10)`. It anchors above the panel, which is
+   where `show(above:)` puts it. */
+.dw-palette {
+  position: absolute;
+  left: 50%;
+  bottom: 212px;                  /* 4px above the panel's top edge, which is
+                                     `panelFrame.maxY + 4` in show(above:).
+                                     The panel is 22 + 168 tall and sits 18
+                                     from the bottom of the stage. */
+  transform: translateX(-50%);
+  z-index: 7;
+  width: min(380px, 92%);
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.dw-palette[hidden] { display: none; }
+
+.dw-palette-filter {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+}
+
+.dw-palette-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;              /* .frame(maxHeight: 220) in PaletteView */
+  overflow-y: auto;
+}
+
+.dw-palette-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: default;
+}
+.dw-palette-row.is-selected { background: var(--accent); color: var(--bg); }
+
+.dw-palette-title { display: flex; flex-direction: column; min-width: 0; }
+.dw-palette-cmd {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "runs" or "types", which is the whole reason the palette is in the hero:
+   the difference between the two is not visible from a command's title and is
+   not recoverable once Return has been pressed. */
+.dw-palette-tag {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.8;
+}
+.dw-palette-hotkey { font-size: 11px; opacity: 0.8; }
+
+.dw-palette-empty {
+  padding: 10px;
+  color: var(--text-tertiary);
+}
+
+@keyframes dw-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dw-panel { transition: none !important; }
+  .dw-cursor { animation: none; }
+}
+
+@media (max-width: 620px) {
+  .stage { height: 330px; --dw-font-size: 12px; }
+  .editor { inset: 18px 12px 0; }
+  .dw-term { min-height: 140px; }
+  .dw-palette { width: min(340px, 94%); }
+}

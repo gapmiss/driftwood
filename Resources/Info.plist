@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>Driftwood</string>
+	<key>CFBundleIdentifier</key>
+	<string>dev.gapmiss.driftwood</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleName</key>
+	<string>Driftwood</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<!-- Both are placeholders: `make bundle` stamps the real values from
+	     Makefile:VERSION and the commit count, and `make release-check`
+	     asserts the stamp. Kept in step with VERSION so the file can't be
+	     misread as a source of truth, and `make check` asserts that too.
+	     Edit this value by hand: `plutil -replace` rewrites the file and
+	     drops this comment. -->
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+</dict>
+</plist>

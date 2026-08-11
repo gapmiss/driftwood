@@ -1,0 +1,442 @@
+/* Driftwood site — hand-written, no build step. Dark scheme is Driftwood
+   Night, light scheme is Paper: the app's own two schemes, so the site and the
+   app cannot disagree about what Driftwood looks like. The accent is the
+   default theme's cursor color. Mode follows the OS unless the toggle sets
+   html[data-theme].
+
+   The panel re-creation's own colors are NOT here — they come from themes.js,
+   which is generated from TerminalTheme.swift. See panel.css. */
+
+:root,
+:root[data-theme="dark"] {
+  --bg: #0a0e15;
+  --bg-raised: #141821;
+  --text: #e6e0d0;
+  --text-secondary: #a8a294;
+  --text-tertiary: #75798a;
+  --accent: #459c9c;
+  --accent-bright: #72d6cf;
+  --border: rgba(255, 255, 255, 0.09);
+  --panel-blur: blur(24px);
+  --selection-bg: rgba(58, 124, 165, 0.4);
+  --kbd-bg: rgba(255, 255, 255, 0.08);
+  --code-bg: rgba(255, 255, 255, 0.05);
+  --shadow-accent: rgba(114, 214, 207, 0.16);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f2e8;
+    --bg-raised: #ece7da;
+    --text: #34302c;
+    --text-secondary: #6b6459;
+    --text-tertiary: #928a7c;
+    --accent: #1f7a72;
+    --accent-bright: #14615a;
+    --border: rgba(52, 48, 44, 0.16);
+    --selection-bg: rgba(58, 124, 165, 0.22);
+    --kbd-bg: rgba(52, 48, 44, 0.07);
+    --code-bg: rgba(52, 48, 44, 0.06);
+    --shadow-accent: rgba(31, 122, 114, 0.14);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f6f2e8;
+  --bg-raised: #ece7da;
+  --text: #34302c;
+  --text-secondary: #6b6459;
+  --text-tertiary: #928a7c;
+  --accent: #1f7a72;
+  --accent-bright: #14615a;
+  --border: rgba(52, 48, 44, 0.16);
+  --selection-bg: rgba(58, 124, 165, 0.22);
+  --kbd-bg: rgba(52, 48, 44, 0.07);
+  --code-bg: rgba(52, 48, 44, 0.06);
+  --shadow-accent: rgba(31, 122, 114, 0.14);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+h1, h2, h3, h4 {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  letter-spacing: -0.02em;
+}
+
+a { color: var(--accent-bright); }
+
+::selection { background: var(--selection-bg); }
+
+/* Skip link: the hero is a focus trap's worth of interactive parts, so give
+   keyboard users a way past it to the prose. */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 30;
+  padding: 10px 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.skip:focus { left: 16px; top: 16px; }
+
+/* Keycaps: one <kbd> per key, grouped in .keys — the system font draws the
+   Mac modifier symbols at full size where SF Mono renders them tiny. */
+kbd {
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 0.9em;
+  color: var(--text);
+  background: var(--kbd-bg);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+.keys { display: inline-flex; gap: 3px; }
+.keys kbd { min-width: 1.1em; text-align: center; }
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+}
+pre code { background: none; padding: 0; }
+
+.copy-btn {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+  background: var(--kbd-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.copy-btn svg { width: 14px; height: 14px; }
+pre:hover .copy-btn,
+.copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { color: var(--text); }
+.copy-btn.copied { color: var(--accent-bright); opacity: 1; }
+
+.kicker {
+  margin: 0 0 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ---------- Mode toggle ---------- */
+
+.mode-toggle {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 10;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+.mode-toggle:hover { color: var(--text); border-color: var(--accent); }
+.mode-toggle svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  text-align: center;
+  padding-top: 56px;
+}
+
+.hero h1 {
+  font-size: 44px;
+  margin: 0 0 14px;
+}
+
+.hero h1::after {
+  content: "";
+  display: block;
+  width: 120px;
+  height: 6px;
+  margin: 14px auto 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-bright), transparent);
+}
+
+.tagline {
+  max-width: 580px;
+  margin: 0 auto;
+  color: var(--text-secondary);
+  text-wrap: balance;
+}
+
+/* Names the one thing in the hero a still image cannot show. It sits directly
+   under the stage rather than with the other caption, because it describes the
+   editor window in the picture and not the demo as a whole. */
+.stage-caption {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* The chips row under the stage drives the re-creation. Buttons, not links —
+   they change the demo's state and go nowhere. */
+.chips {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.chip {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 6px 13px;
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 0 1px var(--accent-bright) inset;
+}
+
+.chips-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* The keyboard-shortcut list. It opens on hover and on keyboard focus, and
+   driftwood.js also makes a click toggle it — hover alone reaches neither a
+   touch screen nor a keyboard, and this is where the page says which keys do
+   anything. */
+.keyhint-wrap { position: relative; display: inline-block; }
+
+.keyhint {
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px 1px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.keyhint:hover { color: var(--text); border-color: var(--accent); }
+.keyhint svg {
+  width: 18px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.keyhint-list {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 12;
+  display: none;
+  width: 322px;
+  transform: translateX(-50%);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+}
+.keyhint-list > span { display: block; }
+.keyhint-note {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.keyhint:hover + .keyhint-list,
+.keyhint:focus-visible + .keyhint-list,
+.keyhint[aria-expanded="true"] + .keyhint-list,
+.keyhint-list:hover { display: block; }
+
+/* ---------- The demos under the hero ---------- */
+
+.demos { display: grid; gap: 34px; }
+.demo h3 { margin-top: 0; }
+.demo p { color: var(--text-secondary); }
+
+/* Each one drives the hero rather than describing it, so it scrolls the stage
+   into view before acting — a button that changes something off-screen looks
+   like a button that did nothing. */
+.demo-btn {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  padding: 7px 15px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+.demo-btn:hover { border-color: var(--accent-bright); }
+.demo-btn[hidden] { display: none; }
+
+.cta { margin: 34px 0 8px; }
+
+.download {
+  display: inline-block;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--bg);
+  background: var(--accent-bright);
+  border-radius: 10px;
+  padding: 12px 26px;
+  box-shadow: 0 6px 22px var(--shadow-accent);
+}
+.download:hover { filter: brightness(1.08); }
+
+.fineprint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Sections ---------- */
+
+section { padding: 56px 0; border-top: 1px solid var(--border); }
+section h2 { font-size: 28px; margin: 0 0 18px; }
+section h3 { font-size: 18px; margin: 28px 0 8px; }
+
+.steps { padding-left: 20px; }
+.steps li { margin-bottom: 14px; }
+
+.build-note { color: var(--text-secondary); font-size: 15px; }
+
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+th, td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th { color: var(--text-secondary); font-weight: 600; }
+
+/* The privacy claims and the Gatekeeper steps: a list of full sentences, each
+   opening with the thing it is about in bold. */
+.claims { margin: 0; padding-left: 20px; }
+.claims li { margin-bottom: 10px; }
+.claims li:last-child { margin-bottom: 0; }
+
+/* A claim the reader is being asked to trust — used for the privacy section
+   and for the `run` flag's warning, which is the one place on this site where
+   being wrong costs the reader a shell command they did not intend to run. */
+.callout {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-bright);
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+.callout.warn { border-left-color: #de6676; }
+
+/* ---------- Footer ---------- */
+
+footer {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 40px 24px 60px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-bottom: 18px;
+}
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: var(--text-secondary);
+}
+.footer-links a:hover { color: var(--accent-bright); }
+.footer-links svg { width: 15px; height: 15px; fill: currentColor; }
+
+.version { margin: 0 0 8px; }
+.legal { margin: 0; font-size: 12px; }
+
+@media (max-width: 620px) {
+  .hero h1 { font-size: 34px; }
+  section { padding: 40px 0; }
+}

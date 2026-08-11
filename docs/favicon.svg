@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The app icon, redrawn as vectors. Every coordinate is copied from
+     Tools/make-icon.swift, which draws Resources/AppIcon.icns on the same
+     1024-unit grid — with y measured from the top here and from the bottom
+     there, so each y below is 1024 minus the one in the script. The colors
+     come from TerminalTheme.driftwoodNight the same way: by hand, because
+     neither file can import the app target.
+
+     docs/favicon.png and docs/apple-touch-icon.png are rendered from that
+     script by `make favicons`. This file is the only drawing of the icon that
+     is edited rather than generated, so a change to the script belongs here
+     too. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185"
+        fill="#141821" stroke="#4b5763" stroke-opacity="0.55" stroke-width="4"/>
+  <path d="M 320 384 L 470 512 L 320 640"
+        fill="none" stroke="#72d6cf" stroke-width="54"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="540" y="586" width="164" height="54" rx="18" ry="18" fill="#c4beac"/>
+</svg>
