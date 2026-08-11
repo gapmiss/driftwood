@@ -4,6 +4,19 @@ All notable changes to Driftwood are recorded here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- ⌃⌥T now asks whether the panel has the keyboard, not only whether it is on screen. A panel left visible while you worked in another app took two presses to type in — the first hid it, the second brought it back. It takes one press now, and the hotkey only hides the panel when the panel is what you were typing in. ⌃⌥F is unchanged: it never hides.
+
+- Quick Commands ▸ is now always in the right-click menu. With none saved it says "No quick commands in config.json" and offers Edit Configuration…, which is the only place the feature announces itself — nothing in the app creates a quick command for you. It used to vanish entirely when the list was empty.
+- Launch at Login moved down, next to Reset Position and Edit Configuration…, instead of sitting alone between two separators.
+
+### Removed
+
+- "Show in Full Screen" is gone from the right-click menu, and `showInFullScreen` from `state.json`. It never did anything: the panel joins all Spaces, which puts it over full-screen apps whatever the setting said. ⌃⌥T sends the panel away in one press instead, from anywhere.
+- "Always on Top" is gone too, and `alwaysOnTop` with it. The panel is always above other windows. Turning it off dropped the panel to an ordinary window level, where it was a trap rather than a preference: Driftwood never becomes the frontmost app, so nothing could raise the panel once a window covered it, and it could still be taking your keystrokes from behind that window.
+- An existing `state.json` keeps both retired keys. Nothing reads them, and the frame, theme, font size and opacity in the same file still load.
+
 ### Fixed
 
 - Selected text was drawn in black on every theme, which made a selection unreadable on the three dark ones. SwiftTerm re-renders a selected run with its own foreground color, and that color defaults to black unless the app sets it; selected text now uses the theme's foreground. Note that a selection still flattens ANSI color to that one foreground while it covers the text, which is SwiftTerm's behavior and not settable.

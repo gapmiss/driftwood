@@ -530,10 +530,6 @@
         })
       },
       { sep: true },
-      { title: "Always on Top", checkbox: true, checked: true, inert: true },
-      { title: "Show in Full Screen", checkbox: true, checked: false, inert: true },
-      { title: "Launch at Login", checkbox: true, checked: false, inert: true },
-      { sep: true },
       {
         title: "New Tab", key: "⌃⌥N",
         act: function () { showPanel(); addTab(); }
@@ -553,6 +549,7 @@
         ])
       },
       { sep: true },
+      { title: "Launch at Login", checkbox: true, checked: false, inert: true },
       { title: "Reset Position", inert: true },
       { title: "Edit Configuration…", inert: true },
       { title: "Check for Updates…", inert: true },

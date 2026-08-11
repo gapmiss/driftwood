@@ -673,9 +673,21 @@ struct Check {
               "an opacity below the floor is clamped, so the panel stays findable")
         check(decode(#"{"opacity":5}"#)?.opacity == 1.0, "an opacity above 1 is clamped")
 
-        check(decode(#"{}"#)?.alwaysOnTop == true, "the panel floats by default")
-        check(decode(#"{}"#)?.showInFullScreen == true,
-              "the panel shows over full-screen apps by default")
+        // alwaysOnTop and showInFullScreen were real settings through 0.1.0.
+        // Every state.json written by that release carries both, so they have to
+        // decode to nothing rather than throw — the whole file would otherwise
+        // be moved aside on first launch of 0.2.0, taking the frame, the theme
+        // and the opacity with it.
+        let retired = decode(#"""
+            {"opacity":0.7,"alwaysOnTop":false,"showInFullScreen":false}
+            """#)
+        check(retired?.opacity == 0.7,
+              "a 0.1.0 state file still decodes, and the settings beside the retired keys survive")
+        let rewritten = String(
+            data: try! JSONEncoder().encode(retired!), encoding: .utf8
+        )!
+        check(!rewritten.contains("alwaysOnTop") && !rewritten.contains("showInFullScreen"),
+              "neither retired key is written back out")
 
         // Presets are the whole of these settings — there is no slider — so a
         // preset that cannot be selected is a value nobody can reach.

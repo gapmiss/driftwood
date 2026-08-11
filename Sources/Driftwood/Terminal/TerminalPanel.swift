@@ -26,6 +26,27 @@ final class TerminalPanel: NSPanel {
             backing: .buffered,
             defer: false
         )
+        // **The level and the Space flags are fixed, and the two menu toggles
+        // that used to move them were removed in 0.2.0.**
+        //
+        // "Always on Top" set this to `.normal` when off, which is a level no
+        // window of this app can survive at. Driftwood never becomes the
+        // frontmost app, so nothing ever brings the panel forward again: the
+        // next window you click covers it, and there is no visible panel left to
+        // click. A covered panel can still be the key window — `hidesOnDeactivate`
+        // is false and nothing watches for it losing focus — so keystrokes went
+        // to a terminal the user could not see.
+        //
+        // "Show in Full Screen" only added and removed `.fullScreenAuxiliary`,
+        // while `.canJoinAllSpaces` below puts the panel on every Space
+        // regardless, full-screen Spaces included. The setting toggled a flag
+        // with nothing behind it. Making it real would have meant dropping
+        // `.canJoinAllSpaces`, which strands the panel on the one desktop it was
+        // created on — the summon hotkey would then do nothing on every *other*
+        // desktop, not only in full screen.
+        //
+        // ⌃⌥T answers both in one press: it puts the panel away from anywhere,
+        // and brings it back the same way.
         level = .floating
         isOpaque = false
         backgroundColor = .clear

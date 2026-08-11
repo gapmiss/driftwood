@@ -105,6 +105,8 @@ Each line is a verdict you can act on without opening anything, plus where the f
 
 - The panel takes the keyboard without Driftwood becoming frontmost — measured, with the fallback path written down. `NSApp.isActive` reads `true` anyway and is the wrong thing to ask → `Sources/Driftwood/AppDelegate.swift:showPanel`
 - `canBecomeKey` true and `canBecomeMain` false is what makes a nonactivating panel accept keystrokes at all → `Sources/Driftwood/Terminal/TerminalPanel.swift:canBecomeKey`
+- ⌃⌥T asks two questions, visible *and* focused. Asking only `isVisible` costs a press: a panel left on screen while you work elsewhere is still visible, so the hotkey hid it and you pressed again to get it back → `Sources/Driftwood/AppDelegate.swift:togglePanel`
+- The window level and the Space flags are fixed, and 0.1.0's two toggles for them were removed. `.canJoinAllSpaces` puts the panel over full-screen apps on its own, so "Show in Full Screen" had nothing behind it; "Always on Top" off dropped the panel to `.normal`, where an app that never comes to the front can never be raised again → `Sources/Driftwood/Terminal/TerminalPanel.swift:init`
 - Carbon registration needs no Accessibility grant, and `InstallEventHandler` failing means register **nothing** — otherwise every binding is claimed system-wide and none of them fires → `Sources/Driftwood/Support/Hotkeys.swift:start`
 - Every hotkey is handed back to the system while an `NSMenu` tracks, or Carbon queues the presses and replays them the instant the menu closes → `Sources/Driftwood/Support/Hotkeys.swift:setEnabled`
 - A binding must carry one of ⌃⌥⌘; shift alone is not a modifier, because a registered hotkey consumes that keystroke in every application → `Sources/Driftwood/Support/Hotkeys.swift:HotkeySpec`
@@ -150,7 +152,7 @@ Each line is a verdict you can act on without opening anything, plus where the f
 
 **Pasted text renders in black until the next keypress.** Inherited from Starboard, and it is SwiftTerm's own `MacTerminalView.paste`: the wrong color is baked in before the echo is drawn, so forcing `needsDisplay` afterward does not fix it — that was already tried there. Any real fix is upstream. Typing over the pasted text, or any redraw, restores the theme foreground.
 
-**A second ⌃⌥T looks like a crash.** Pressing the summon hotkey while the panel is showing hides it, which is the intended behavior. But with no Dock icon and no menu bar item, a user who does that by accident has no way to tell Driftwood is still running, and nothing on screen says which key brings it back. Not a bug in 0.1.0 and not fixed there; worth deciding on before 0.2. Raised by the first smoke test.
+**A second ⌃⌥T looks like a crash.** Pressing the summon hotkey while the panel has the keyboard hides it, which is the intended behavior. But with no Dock icon and no menu bar item, a user who does that by accident has no way to tell Driftwood is still running, and nothing on screen says which key brings it back. Narrowed since 0.1.0 — a press while the panel is visible but *unfocused* now focuses it instead of hiding it, so the accident needs the panel to already be the thing you were typing in. Still open for the remaining case.
 
 ## Manual smoke test
 

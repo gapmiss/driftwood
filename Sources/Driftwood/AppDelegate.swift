@@ -113,7 +113,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         panel = TerminalPanel(contentRect: frame)
         panel.delegate = self
-        applyLevelAndSpaces()
 
         effectView = NSVisualEffectView(frame: NSRect(origin: .zero, size: frame.size))
         effectView.autoresizingMask = [.width, .height]
@@ -161,15 +160,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.minSize = TerminalMetrics.minimumPanelSize(
             font: font, showingTabBar: sessions.showsTabBar
         )
-    }
-
-    /// Window level and Space behavior, from the two menu toggles. Applied at
-    /// launch and again whenever either changes.
-    private func applyLevelAndSpaces() {
-        panel.level = state.alwaysOnTop ? .floating : .normal
-        var behavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .ignoresCycle]
-        if state.showInFullScreen { behavior.insert(.fullScreenAuxiliary) }
-        panel.collectionBehavior = behavior
     }
 
     // MARK: - Sessions
@@ -376,8 +366,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.orderOut(nil)
     }
 
+    /// Is the panel the window keystrokes are going to right now?
+    ///
+    /// The palette counts. It is a second `NSPanel`, so opening it takes key
+    /// status away from `panel` — without this, ⌃⌥T with the palette open would
+    /// read as "visible but not focused" and pull the keyboard back to the
+    /// terminal underneath, leaving the palette on screen and inert.
+    private var panelHasKeyboard: Bool {
+        panel.isKeyWindow || (palette?.isKeyWindow ?? false)
+    }
+
+    /// ⌃⌥T. Three states, not two.
+    ///
+    /// **Visible and focused are different questions, and asking only the first
+    /// one costs a press.** A nonactivating panel keeps standing on screen after
+    /// you click back into your editor; it is still visible, it just no longer
+    /// has the keyboard. `panel.isVisible` alone cannot tell that apart from
+    /// "visible and you are typing in it", so the hotkey hid the panel and the
+    /// user pressed it a second time to get it back — twice to do one thing.
+    ///
+    /// So the rule is that ⌃⌥T always leaves you with a panel you can type in,
+    /// and only hides the panel when the panel is already what you were typing
+    /// in. Summoning while it is visible-but-unfocused takes the keyboard,
+    /// which is what ⌃⌥F does; the two hotkeys overlap in that one state on
+    /// purpose. ⌃⌥F is the binding that *never* hides.
     @objc private func togglePanel() {
-        if panel.isVisible { hidePanel() } else { showPanel() }
+        if panel.isVisible && panelHasKeyboard {
+            hidePanel()
+        } else {
+            showPanel()
+        }
     }
 
     // MARK: - Geometry
@@ -551,17 +569,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         applyTheme()
     }
 
-    @objc private func toggleAlwaysOnTop() {
-        state.alwaysOnTop.toggle()
-        state.save()
-        applyLevelAndSpaces()
-    }
-
-    @objc private func toggleShowInFullScreen() {
-        state.showInFullScreen.toggle()
-        state.save()
-        applyLevelAndSpaces()
-    }
 
     @objc private func toggleLaunchAtLogin() {
         let service = SMAppService.mainApp
@@ -730,23 +737,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(submenu("Opacity", opacityMenu()))
 
         menu.addItem(.separator())
-        let onTop = item("Always on Top", #selector(toggleAlwaysOnTop))
-        onTop.state = state.alwaysOnTop ? .on : .off
-        menu.addItem(onTop)
-        let fullScreen = item("Show in Full Screen", #selector(toggleShowInFullScreen))
-        fullScreen.state = state.showInFullScreen ? .on : .off
-        menu.addItem(fullScreen)
+        menu.addItem(item("New Tab", #selector(newTab), hotkey: config.hotkeys.newTab))
+        menu.addItem(submenu("Quick Commands", quickCommandMenu()))
+
+        menu.addItem(.separator())
+        // First in this group, and not last. The three rows below it are verbs
+        // that happen when you pick them; this one reports a state with a
+        // checkmark, and it reads better above them than buried between them.
+        // It also keeps a rarely-wanted toggle away from Quit Driftwood, which
+        // ends every shell in every tab — arrowing one row past the bottom of
+        // this group lands on the inert version row instead.
         let login = item("Launch at Login", #selector(toggleLaunchAtLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
-
-        menu.addItem(.separator())
-        menu.addItem(item("New Tab", #selector(newTab), hotkey: config.hotkeys.newTab))
-        if !quickCommands.isEmpty {
-            menu.addItem(submenu("Quick Commands", quickCommandMenu()))
-        }
-
-        menu.addItem(.separator())
         menu.addItem(item("Reset Position", #selector(resetPosition)))
         menu.addItem(item("Edit Configuration…", #selector(editConfiguration)))
         menu.addItem(item("Check for Updates…", #selector(checkForUpdates)))
@@ -798,8 +801,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return submenu
     }
 
+    /// Quick Commands ▸, including when there are none.
+    ///
+    /// **The row stays when the list is empty, and the submenu explains
+    /// itself.** Through 0.1.0 the whole row was omitted, which hid the feature
+    /// from the one person who most needed to hear about it: quick commands
+    /// have no UI that creates one, so a user who has never edited
+    /// `config.json` had nothing to discover. Disabling the row instead would
+    /// not have fixed that — AppKit skips disabled rows when you arrow through
+    /// a menu, so a keyboard user would never land on it, and this menu is the
+    /// whole settings surface.
+    ///
+    /// So the empty submenu carries the same sentence the palette shows, and
+    /// then the two things worth doing about it: open the file, or open the
+    /// palette and see the state for yourself.
     private func quickCommandMenu() -> NSMenu {
         let submenu = NSMenu()
+        if quickCommands.isEmpty {
+            let empty = NSMenuItem(
+                title: QuickCommands.emptyStateMessage, action: nil, keyEquivalent: ""
+            )
+            empty.isEnabled = false
+            submenu.addItem(empty)
+            submenu.addItem(.separator())
+            submenu.addItem(item("Edit Configuration…", #selector(editConfiguration)))
+        }
         for command in quickCommands {
             let entry = item(
                 command.title, #selector(fireQuickCommandFromMenu(_:)), hotkey: command.hotkey

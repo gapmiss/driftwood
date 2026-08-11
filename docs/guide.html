@@ -117,7 +117,8 @@ make run</code></pre>
     <p>Nowhere you can see. Driftwood has no Dock icon, no menu bar item and no window until you ask
        for one. Press
        <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> and the panel
-       appears with the keyboard already in it. Press it again and the panel goes away.</p>
+       appears with the keyboard already in it. Press it again, while you are still typing in it, and
+       the panel goes away.</p>
 
     <p>The panel and its right-click menu are the whole interface. Right-click anywhere in the panel
        for themes, opacity, tabs and Quit — there is no preferences window to look for.</p>
@@ -135,11 +136,14 @@ make run</code></pre>
 
     <h3>Summon and dismiss</h3>
 
-    <p><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> shows the panel,
-       and hides it again if it is already up.
-       <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>F</kbd></span> only ever shows
-       it. The difference matters when you are not sure whether the panel is already on screen:
-       <code>toggle</code> would put it away, and <code>focus</code> brings it forward either way.</p>
+    <p><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> always leaves you
+       with a panel you can type in, and only puts it away when the panel is already what you were
+       typing in. So it shows the panel when it is hidden, hands it the keyboard when it is on screen
+       but you have been working somewhere else, and hides it when you were just typing in it.</p>
+
+    <p><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>F</kbd></span> is the same thing
+       without the last step: it never hides the panel. Bind it if you would rather the summon key
+       could not put the panel away by accident.</p>
 
     <h3>The app behind never loses focus</h3>
 
@@ -189,11 +193,16 @@ make run</code></pre>
           have to hunt for it.</li>
     </ul>
 
-    <h3>Always on Top and Show in Full Screen</h3>
+    <h3>Where the panel sits</h3>
 
-    <p>Both are in the right-click menu and both ship on. <strong>Always on Top</strong> keeps the
-       panel above other windows; turning it off lets other windows cover it. <strong>Show in Full Screen</strong> lets the panel appear over an app
-       that has taken the whole screen; turning it off means a full-screen app hides it.</p>
+    <p>Above other windows, on every desktop, and over an app that has taken the whole screen. None
+       of that is a setting, and the hotkey is the control:
+       <span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span> sends the panel
+       away from anywhere and brings it back the same way.</p>
+
+    <p>Driftwood never becomes the frontmost app, which is what makes the focus model work — and it
+       is also why a panel below other windows would be a trap. Nothing would bring it forward again,
+       and it could still be holding the keyboard behind whatever covered it.</p>
   </section>
 
   <!-- ================================================================== -->
@@ -593,8 +602,6 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
               <td>Snapped to the nearest preset when read.</td></tr>
           <tr><td><code>opacity</code></td><td><code>1.0</code></td>
               <td>Clamped to 0.2&ndash;1.0, and multiplied into the theme's own background alpha.</td></tr>
-          <tr><td><code>alwaysOnTop</code></td><td><code>true</code></td><td>Keep the panel above other windows.</td></tr>
-          <tr><td><code>showInFullScreen</code></td><td><code>true</code></td><td>Show the panel over full-screen apps.</td></tr>
         </tbody>
       </table>
     </div>
@@ -623,7 +630,7 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr>
             <td><code>toggle</code></td>
             <td><code data-hotkey-default="toggle">control+option+t</code></td>
-            <td>Show the panel, or hide it if it is already showing.</td>
+            <td>Show the panel, give it the keyboard, or hide it if it already has the keyboard.</td>
           </tr>
           <tr>
             <td><code>focus</code></td>
@@ -729,15 +736,13 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr><td>Font Size &#x25B8;</td><td>10, 11, 12, 13, 14, 16 point.</td></tr>
           <tr><td>Opacity &#x25B8;</td>
               <td>100%, 90%, 80%, 70%, 50%, multiplied into the theme's own background alpha.</td></tr>
-          <tr><td>Always on Top</td><td>Keep the panel above other windows. On by default.</td></tr>
-          <tr><td>Show in Full Screen</td><td>Show the panel over full-screen apps. On by default.</td></tr>
+          <tr><td>New Tab</td><td>Opens a tab. Shows the <code>newTab</code> hotkey next to it.</td></tr>
+          <tr><td>Quick Commands &#x25B8;</td>
+              <td>Your saved commands, each with its hotkey, then a Show Palette&hellip; row. With none
+                  saved, it says so and offers Edit Configuration&hellip; instead.</td></tr>
           <tr><td>Launch at Login</td>
               <td>Registers Driftwood to start with the session. Off by default, and it outlives the
                   app bundle — turn it off before you delete the app.</td></tr>
-          <tr><td>New Tab</td><td>Opens a tab. Shows the <code>newTab</code> hotkey next to it.</td></tr>
-          <tr><td>Quick Commands &#x25B8;</td>
-              <td>Your saved commands, each with its hotkey, then a Show Palette&hellip; row. The whole
-                  submenu is absent when you have no quick commands.</td></tr>
           <tr><td>Reset Position</td><td>Back to 720&times;360, centred on the main display.</td></tr>
           <tr><td>Edit Configuration&hellip;</td>
               <td>Opens <code>config.json</code> in whichever app owns <code>.json</code>.</td></tr>

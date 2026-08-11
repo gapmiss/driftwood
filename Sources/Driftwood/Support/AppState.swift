@@ -23,14 +23,15 @@ struct AppState: Codable, Equatable {
     /// than replacing it — the theme decides how translucent it wants to be,
     /// this scales that decision.
     var opacity = 1.0
-    /// Keep the panel above other windows. Off drops it to a normal window
-    /// level, where it can be covered.
-    var alwaysOnTop = true
-    /// Show the panel over full-screen apps.
-    var showInFullScreen = true
 
+    /// `alwaysOnTop` and `showInFullScreen` were keys here through 0.1.0 and are
+    /// gone in 0.2.0, along with the two menu rows that wrote them. A
+    /// `state.json` written by 0.1.0 still carries both; nothing reads them, and
+    /// by the no-migrations rule a key nobody claims is inert rather than an
+    /// error. The account of why the settings went is on `TerminalPanel.init`,
+    /// beside the level and collection behavior they used to move.
     private enum CodingKeys: String, CodingKey {
-        case frame, theme, fontSize, opacity, alwaysOnTop, showInFullScreen
+        case frame, theme, fontSize, opacity
     }
 
     /// The font sizes offered by Font Size ▸, and the only values `fontSize`
@@ -104,8 +105,6 @@ struct AppState: Codable, Equatable {
         fontSize = Self.nearestFontSize(CGFloat(rawSize))
         let rawOpacity = try c.decodeIfPresent(Double.self, forKey: .opacity) ?? 1.0
         opacity = rawOpacity.clamped(to: Self.opacityRange)
-        alwaysOnTop = try c.decodeIfPresent(Bool.self, forKey: .alwaysOnTop) ?? true
-        showInFullScreen = try c.decodeIfPresent(Bool.self, forKey: .showInFullScreen) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -114,8 +113,6 @@ struct AppState: Codable, Equatable {
         try c.encode(theme, forKey: .theme)
         try c.encode(Double(fontSize), forKey: .fontSize)
         try c.encode(opacity, forKey: .opacity)
-        try c.encode(alwaysOnTop, forKey: .alwaysOnTop)
-        try c.encode(showInFullScreen, forKey: .showInFullScreen)
     }
 
     /// `{x, y, width, height}` rather than `CGRect`'s own `Codable` shape,
