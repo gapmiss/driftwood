@@ -34,7 +34,7 @@ window.DRIFTWOOD_THEMES = [
     background: "#05090fa6",
     foreground: "#c4beac",
     cursor: "#72d6cf",
-    selection: "#3a7ca566",
+    selection: "#244664b4",
     tabBarText: "#c4beac"
   },
   {
@@ -61,7 +61,7 @@ window.DRIFTWOOD_THEMES = [
     background: "#120c0ab0",
     foreground: "#deceba",
     cursor: "#de9e41",
-    selection: "#986c4a6e",
+    selection: "#70442cb4",
     tabBarText: "#deceba"
   },
   {
@@ -115,7 +115,7 @@ window.DRIFTWOOD_THEMES = [
     background: "#0e0e0eb0",
     foreground: "#d0d0d0",
     cursor: "#f4f4f4",
-    selection: "#78787860",
+    selection: "#525252b4",
     tabBarText: "#d0d0d0"
   }
 ];

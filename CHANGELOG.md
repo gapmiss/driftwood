@@ -2,6 +2,14 @@
 
 All notable changes to Driftwood are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Selected text was drawn in black on every theme, which made a selection unreadable on the three dark ones. SwiftTerm re-renders a selected run with its own foreground color, and that color defaults to black unless the app sets it; selected text now uses the theme's foreground. Note that a selection still flattens ANSI color to that one foreground while it covers the text, which is SwiftTerm's behavior and not settable.
+- Retuned the selection band in Driftwood Night, Ember and Mono so the edges of a selection are findable without costing text contrast. Paper is unchanged.
+- On the website, dragging across the mock terminal highlighted in the site's own blue rather than the selected theme's selection color.
+
 ## [0.1.0] — 2026-08-09
 
 First release.

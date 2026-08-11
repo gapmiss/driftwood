@@ -310,6 +310,14 @@
   border: 0;
   outline: none;
 }
+/* Selection inside the panel is the theme's selection color, not the site's.
+   Without the descendant rule, dragging across terminal output picks up the
+   page-wide `::selection` in style.css — the site's chrome blue, at an alpha
+   chosen for the page background, over a panel painted in whichever theme the
+   visitor picked. It reads as a bug in the theme. `.dw-input` needs its own
+   rule because the input is the selection's element, not a descendant of one
+   that matches. */
+.dw-panel ::selection { background: var(--dw-selection); }
 .dw-input::selection { background: var(--dw-selection); }
 
 .dw-inputline { position: relative; }

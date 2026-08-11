@@ -347,7 +347,7 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr><td><code>background</code></td><td>The panel's tint, alpha included.</td></tr>
           <tr><td><code>foreground</code></td><td>Text with no color of its own.</td></tr>
           <tr><td><code>cursor</code></td><td>The block cursor.</td></tr>
-          <tr><td><code>selection</code></td><td>The highlight behind selected text. Give it an alpha.</td></tr>
+          <tr><td><code>selection</code></td><td>The highlight behind selected text. Give it an alpha. Selected text itself is drawn in <code>foreground</code>, so a selection is monochrome while it covers colored output.</td></tr>
           <tr><td><code>tabBarText</code></td><td>Tab titles. The strip's own fill is derived from
                   <code>background</code>.</td></tr>
         </tbody>

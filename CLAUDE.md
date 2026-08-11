@@ -120,6 +120,8 @@ Each line is a verdict you can act on without opening anything, plus where the f
 - A resize clamps the *moving* edge against the fixed one. Clamping width alone lets the origin creep sideways under a stalled cursor → `Sources/Driftwood/Terminal/TerminalMetrics.swift:resized`
 - The blur layer needs `masksToBounds`, or the terminal paints square corners over the rounded panel → `Sources/Driftwood/AppDelegate.swift:buildPanel`
 - Transparency takes **two** assignments, not one. SwiftTerm's `nativeBackgroundColor` setter never touches the view's layer, and the layer is painted once during `init` with SwiftTerm's own opaque default — set the layer's background to clear as well or the panel is a solid slab → `Sources/Driftwood/AppDelegate.swift:applyTheme`
+- Selected text needs **two** colors set, not one. SwiftTerm re-draws a selected run with its own foreground, which defaults to `NSColor.black` — set `selectedTextForegroundColor` or every selection is black text on a dark band → `Sources/Driftwood/AppDelegate.swift:applyTheme`
+- The selection band is tuned to two measured contrast ratios, and its alpha composites over the wallpaper rather than over the theme background → `Sources/Driftwood/Terminal/TerminalTheme.swift:selection`
 - `$SHELL` is exported from the same setting that launches the shell, so the two cannot drift; several completion scripts misbehave without it → `Sources/Driftwood/AppDelegate.swift:childEnvironment`
 - The tab strip is drawn rather than an `NSStackView`, because it also has to be the window's drag handle → `Sources/Driftwood/Terminal/TabBar.swift:TabBar`
 

@@ -492,6 +492,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         session.view.layer?.backgroundColor = NSColor.clear.cgColor
         session.view.caretColor = nsColor(theme.cursor)
         session.view.selectedTextBackgroundColor = nsColor(theme.selection)
+        // **Selected text is drawn in `NSColor.black` unless this line sets it.**
+        // SwiftTerm 1.15 does not tint the selection over the glyphs that are
+        // already there. It re-renders the selected run with two overridden
+        // attributes — the background *and* the foreground
+        // (`AppleTerminalView.swift:751`) — and `selectedTextForegroundColor`
+        // defaults to `NSColor.black` (`MacTerminalView.swift:743`). Leave it
+        // alone and every selected character on a dark theme is black on a dark
+        // band, which is what 0.1.0 shipped. Paper escaped it only because black
+        // ink happens to read on a light background.
+        //
+        // Setting it to the theme's own foreground keeps selected text the color
+        // it already was. The trade is that a selection flattens ANSI color:
+        // SwiftTerm overrides the foreground of every selected run, so colored
+        // output goes monochrome while it is selected. That is SwiftTerm's
+        // design and there is no attribute to opt out of it.
+        session.view.selectedTextForegroundColor = nsColor(theme.foreground)
     }
 
     @objc private func selectTheme(_ sender: NSMenuItem) {

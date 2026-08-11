@@ -29,6 +29,30 @@ struct TerminalTheme {
     let background: RGBA
     let foreground: RGBA
     let cursor: RGBA
+    /// The band behind selected text. Read it together with
+    /// `applyTheme`'s `selectedTextForegroundColor` line: what a selection
+    /// looks like is those two colors, and 0.1.0 only set this one.
+    ///
+    /// **Selected text is not this color's problem to solve.** SwiftTerm draws
+    /// selected glyphs in `selectedTextForegroundColor`, which defaults to
+    /// black; darkening or lightening the band cannot rescue black text on a
+    /// dark theme. `applyTheme` sets that foreground now, so the band is free
+    /// to be tuned for one job: making the edges of a selection findable.
+    ///
+    /// Each color is aimed at two contrast ratios, measured against the theme's
+    /// own background: at least 7:1 for `foreground` drawn on the band, and
+    /// 1.5–1.8:1 for the band against unselected background. The two pull
+    /// against each other on a dark theme — a band is only findable by being
+    /// lighter than a near-black background, and every step lighter costs text
+    /// contrast. Paper's pair (7.4:1 and 1.55:1) is what the other three were
+    /// tuned to; it is the one theme of the four that read correctly in 0.1.0.
+    ///
+    /// The alpha is part of the tuning and not decoration. The terminal view's
+    /// layer is clear (see `applyTheme`), so this band composites over the
+    /// tint, the blur and whatever wallpaper is behind the panel — not over
+    /// `background`. At 0.1.0's 96–110 the desktop bled through enough to move
+    /// the band around; 180 holds the intended color while keeping the panel
+    /// see-through where it is selected.
     let selection: RGBA
     let tabBarText: RGBA
 
@@ -85,7 +109,7 @@ extension TerminalTheme {
         background: (5, 9, 15, 166),
         foreground: (196, 190, 172, 255),
         cursor: (114, 214, 207, 255),
-        selection: (58, 124, 165, 102),
+        selection: (36, 70, 100, 180),
         tabBarText: (196, 190, 172, 255)
     )
 
@@ -115,7 +139,7 @@ extension TerminalTheme {
         background: (18, 12, 10, 176),
         foreground: (222, 206, 186, 255),
         cursor: (222, 158, 65, 255),
-        selection: (152, 108, 74, 110),
+        selection: (112, 68, 44, 180),
         tabBarText: (222, 206, 186, 255)
     )
 
@@ -178,7 +202,7 @@ extension TerminalTheme {
         background: (14, 14, 14, 176),
         foreground: (208, 208, 208, 255),
         cursor: (244, 244, 244, 255),
-        selection: (120, 120, 120, 96),
+        selection: (82, 82, 82, 180),
         tabBarText: (208, 208, 208, 255)
     )
 
