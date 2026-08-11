@@ -5,9 +5,9 @@
 // color on this site, change the theme in TerminalTheme.swift and run
 // `make site`.
 //
-// Driftwood 0.1.0
+// Driftwood 0.2.0
 
-window.DRIFTWOOD_VERSION = "0.1.0";
+window.DRIFTWOOD_VERSION = "0.2.0";
 
 window.DRIFTWOOD_THEMES = [
   {

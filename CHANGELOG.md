@@ -2,7 +2,7 @@
 
 All notable changes to Driftwood are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] — 2026-08-11
 
 ### Added
 
@@ -66,4 +66,5 @@ Both found by the first manual smoke test, before release.
 - Built in Swift 5 language mode. SwiftTerm 1.15 predates `Sendable`, so conforming a `@MainActor` type to `LocalProcessTerminalViewDelegate` is an actor-isolation error under Swift 6 checking; `@preconcurrency import` does not cover it. See `Package.swift`.
 - Pasted text renders in black until the next redraw. The bug is in SwiftTerm's own paste path.
 
+[0.2.0]: https://github.com/gapmiss/driftwood/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/gapmiss/driftwood/releases/tag/v0.1.0
