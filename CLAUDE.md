@@ -172,7 +172,7 @@ Nothing below the compiler verifies these; `make check` cannot reach the panel, 
 4. `echo $SHELL` in a fresh tab must print the configured shell.
 5. Open three tabs, close the middle one, cycle with ⌘⇧] and ⌘⇧[, and jump with ⌘1…⌘3.
 6. Change theme, font size and opacity from the menu; quit and relaunch; all three must persist.
-7. Drag the panel to a second display, quit, unplug it, relaunch — the panel must come back on a display that exists. **Never run.** No second display was attached when 0.1.0 was smoke-tested, so this step was skipped rather than passed, and `PanelGeometry.validatedFrame`'s screen-gone branch has only ever been exercised by `make check` against synthetic screen rectangles. Run it before assuming it works.
+7. Drag the panel to a second display, quit, unplug it, relaunch — the panel must come back on a display that exists. **Never run.** No second display was attached when 0.1.0 or 0.2.0 was smoke-tested, so this step was skipped rather than passed both times, and `PanelGeometry.validatedFrame`'s screen-gone branch has only ever been exercised by `make check` against synthetic screen rectangles. Run it before assuming it works.
 8. Open the palette with ⌃⌥K, filter, and press Return on a command with no `run` flag. It must be typed at the prompt and left there, unexecuted.
 
 ## Working on the website
