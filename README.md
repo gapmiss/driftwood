@@ -15,7 +15,12 @@ Requires macOS 14 or later. Apple silicon and Intel.
 
 ## Install
 
-Download the DMG from [Releases](https://github.com/gapmiss/driftwood/releases) and drag Driftwood to Applications.
+```bash
+brew trust --cask gapmiss/tap/driftwood   # required for third-party taps
+brew install --cask gapmiss/tap/driftwood
+```
+
+Or download the DMG from [Releases](https://github.com/gapmiss/driftwood/releases) and drag Driftwood to Applications. The cask installs the same app, so the first launch is blocked either way.
 
 The app is signed ad-hoc rather than notarized, so the first launch is blocked. Right-click the app → Open → Open, once. After that it launches normally. On macOS 15 and later the step is different — the guide has [both](https://gapmiss.github.io/driftwood/guide.html#getting-started).
 

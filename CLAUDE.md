@@ -154,6 +154,8 @@ Each line is a verdict you can act on without opening anything, plus where the f
 
 Nothing below the compiler verifies these; `make check` cannot reach the panel, the terminal or a real shell.
 
+**Test a release build the way a user gets it: download it.** The blocked first launch that both pages and the cask caveats describe cannot be reproduced by hand-writing `com.apple.quarantine` onto a locally built app. A flag value copied from the usual recipe carries bits that mark the file as already assessed, so macOS runs the app — translocated, from a random read-only path — and prints nothing. `spctl -a -vvv` still reports `rejected`, which is the static policy verdict and says nothing about whether a dialog appears. Worse, once any copy of a given signature has been approved, LaunchServices remembers, and no attribute editing brings the prompt back. Download the DMG from the release page in a browser, which is also the only version of the test that exercises the site's download button.
+
 1. **The focus model.** With an editor frontmost, press ⌃⌥T, type `echo hi`, press Return. The command must run in Driftwood while the editor's title bar stays active. Press ⌃⌥T again; focus must return to the editor untouched. This is the one test the whole design rests on — `showPanel` records `key=` and `frontmost=` in the debug log, so run it with `debug: true` and read the log back.
 2. Resize from all four edges and all four corners. A text-selection drag inside the terminal must not move the window; a ⌘-drag must.
 3. Right-click anywhere in the panel. Driftwood's settings menu must appear, not SwiftTerm's.
@@ -187,6 +189,7 @@ Nothing below the compiler verifies these; `make check` cannot reach the panel, 
 ## Conventions
 
 - The app is "Driftwood" in copy, never "the Driftwood".
+- **Install instructions live in four places and nothing guards them:** `README.md`, `docs/index.html`, `docs/guide.html`, and the cask's `caveats` in `gapmiss/homebrew-tap`. A change to how someone installs or unblocks Driftwood has to reach all four. The cask carries the release's `version` and the DMG's sha256 as well, in a repository `make check` cannot read, which is why the release checklist states it as a human step. Lint a cask edit with `brew style --cask gapmiss/tap/driftwood` — run from the tap, since Homebrew refuses to check a cask file outside one.
 - `Resources/AppIcon.icns` is checked in, and `Tools/make-icon.swift` is the source it came from. Edit the script and run `make icon`; never edit the `.icns`. The script redraws it byte for byte, so a regeneration with no edit leaves the tree clean. Its colors are copied out of `TerminalTheme.driftwoodNight` by hand, because a standalone script cannot import the app target — change that palette and the icon does not follow on its own.
 - Don't hard-wrap prose in Markdown; let it soft-wrap.
 - When you fix something subtle, put the account in a doc comment beside the code and add a one-line verdict to the tripwire index above.

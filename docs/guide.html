@@ -858,6 +858,11 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
     <p class="kicker">Help</p>
     <h2>Uninstall</h2>
 
+    <p>If you installed with Homebrew, uninstall with Homebrew — deleting the app by hand leaves
+       Homebrew still believing it is installed. <code>brew uninstall --cask driftwood</code> removes
+       the app; <code>brew zap --cask driftwood</code> removes its settings and its log as well.
+       Turn off Launch at Login before either, for the reason in step 1.</p>
+
     <ol class="steps">
       <li><strong>Turn off Launch at Login first</strong>, if you ever turned it on. Right-click the
           panel and uncheck it. The login registration is held by macOS and outlives the app bundle,
