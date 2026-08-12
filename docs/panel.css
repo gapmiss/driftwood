@@ -109,8 +109,8 @@
   position: absolute;
   left: 50%;
   bottom: 18px;
-  transform: translateX(-50%);
   width: min(560px, 92%);
+  transform: translate(calc(-50% + var(--dw-dx, 0px)), var(--dw-dy, 0px));
   border-radius: 10px;
   overflow: hidden;               /* the app needs masksToBounds for the same
                                      reason: square corners over a rounded
@@ -123,13 +123,34 @@
   transition: opacity 0.14s ease, transform 0.14s ease;
 }
 
+/* Where a drag has put the panel. driftwood.js writes --dw-dx/--dw-dy on the
+   element and nothing else moves, so the panel keeps its centered resting
+   place: an offset of 0,0 is the position the page loads in, and Reset
+   Position clears the two properties rather than recomputing a frame.
+
+   The offset has to be folded into the same transform that centers the panel,
+   because a second transform declaration would replace this one. That is also
+   why .is-hidden below repeats it — its 8px slide is another transform on the
+   same element, and written without the offset it teleports a moved panel
+   back to the middle on the way out. */
+.dw-panel.is-dragging {
+  transition: none;                /* a 0.14s ease on transform makes a drag
+                                      trail the pointer */
+}
+.dw-panel.is-dragging,
+.dw-panel.is-dragging * {
+  cursor: grabbing;                /* the strip's grab cursor and the
+                                      terminal's I-beam both lose to this for
+                                      the length of the drag */
+}
+
 /* Closing the last tab hides the panel, the way the app does — ⌃⌥T brings it
    back with a fresh shell. `inert` is what keeps the hidden panel out of the
    tab order and away from the pointer; the class only handles the look. Not
    `hidden`, which would cut the transition. */
 .dw-panel.is-hidden {
   opacity: 0;
-  transform: translateX(-50%) translateY(8px);
+  transform: translate(calc(-50% + var(--dw-dx, 0px)), calc(var(--dw-dy, 0px) + 8px));
   pointer-events: none;
 }
 
@@ -140,11 +161,15 @@
    TabBar.draw does — that is why themes.js's background arrives split into
    --dw-bg (with its own alpha, for the panel) and --dw-bg-rgb (channels only,
    so this rule can set a different alpha). */
+/* `cursor: grab` on the strip, not on the tabs inside it: the empty region
+   between the last tab and the "+" is the window's drag handle in the app, and
+   every child that is a control sets its own pointer cursor back. */
 .dw-tabs {
   display: flex;
   align-items: stretch;
   height: 22px;
   background: rgb(var(--dw-bg-rgb) / 0.35);
+  cursor: grab;
 }
 
 /* The strip hides itself at one tab, which is SessionStack.showsTabBar —
@@ -481,16 +506,14 @@
 /* ---------- The command palette ---------- */
 
 /* 380px and the 10px radius are CommandPalette's own `.frame(width: 380)` and
-   `RoundedRectangle(cornerRadius: 10)`. It anchors above the panel, which is
-   where `show(above:)` puts it. */
+   `RoundedRectangle(cornerRadius: 10)`.
+
+   Nothing here places it. `show(above:)` positions the palette against the
+   panel's frame, so driftwood.js measures the panel and writes left/top or
+   left/bottom at open — the panel is draggable, and a hardcoded offset from
+   the stage detaches from it the moment it moves. */
 .dw-palette {
   position: absolute;
-  left: 50%;
-  bottom: 212px;                  /* 4px above the panel's top edge, which is
-                                     `panelFrame.maxY + 4` in show(above:).
-                                     The panel is 22 + 168 tall and sits 18
-                                     from the bottom of the stage. */
-  transform: translateX(-50%);
   z-index: 7;
   width: min(380px, 92%);
   color: var(--text);

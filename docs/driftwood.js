@@ -438,6 +438,113 @@
     if (panelIsHidden()) showPanel(); else hidePanel();
   }
 
+  // ------------------------------------------------------- moving the panel
+
+  // The two ways the app moves its window, from `ChromeView`: drag the empty
+  // part of the tab strip — the strip is the window's drag handle, which is
+  // why TabBar draws it instead of being an NSStackView — or hold ⌘ and drag
+  // anywhere in the panel. Plain dragging inside the terminal stays a text
+  // selection in both.
+  //
+  // Moving it is what makes the translucency legible: parked at the bottom of
+  // the stage the panel sits over empty editor background, and the blur has
+  // nothing to blur. Dragged up over the code, the editor's text shows through
+  // it.
+  //
+  // The position is an offset from where the panel already sits, kept in
+  // --dw-dx/--dw-dy rather than in `left`/`top`, so the resting place stays
+  // the CSS centering and a reset is two properties removed. The panel is
+  // clamped inside the stage: this is a page, and a panel dragged out over the
+  // download button or off the top of the hero is a broken page rather than a
+  // demonstration.
+  var panelDX = 0;
+  var panelDY = 0;
+
+  function applyPanelOffset() {
+    panelEl.style.setProperty("--dw-dx", panelDX + "px");
+    panelEl.style.setProperty("--dw-dy", panelDY + "px");
+  }
+
+  // `AppDelegate.resetPosition`, which puts the panel back at the default
+  // frame. On the page that is the position it loaded in.
+  function resetPanelPosition() {
+    panelDX = 0;
+    panelDY = 0;
+    applyPanelOffset();
+  }
+
+  // The button's version of a drag, for the visitor who never tries one and
+  // for the one who has no pointer: the panel up over the editor's code, where
+  // the blur and the theme's own alpha finally have something behind them.
+  // Pressing it again is Reset Position.
+  //
+  // `offsetTop` rather than a bounding rect, because this runs on a panel that
+  // may still be sliding through the show transition, and a rect taken
+  // mid-transition is up to 8px out. offsetTop is the layout position and
+  // ignores the transform entirely.
+  function movePanelDemo() {
+    showPanel();
+    if (panelDX || panelDY) { resetPanelPosition(); return; }
+    var top = panelEl.offsetTop;
+    panelDY = Math.max(62 - top, -top);   // 62px down the stage is the mock
+    applyPanelOffset();                   // editor's first line of code
+  }
+
+  // A pointer drag, from wherever it starts to wherever it ends. The pointer
+  // is captured, so a drag that leaves the panel — or leaves the window —
+  // keeps being delivered here and still ends on its own; the app needs its
+  // own `nextEvent(matching:)` loop for the same reason.
+  function beginPanelDrag(e) {
+    if (e.button !== 0 || panelIsHidden()) return;
+    // A ⌘-drag started on the strip reaches both handlers below; the second
+    // one would capture the pointer away from the first and leave its move
+    // listener live for the rest of the page's life.
+    if (panelEl.classList.contains("is-dragging")) return;
+
+    var stageRect = stage.getBoundingClientRect();
+    var panelRect = panelEl.getBoundingClientRect();
+
+    // How far the current offset can move before an edge of the panel passes
+    // the matching edge of the stage.
+    var minDX = panelDX - (panelRect.left - stageRect.left);
+    var maxDX = panelDX + (stageRect.right - panelRect.right);
+    var minDY = panelDY - (panelRect.top - stageRect.top);
+    var maxDY = panelDY + (stageRect.bottom - panelRect.bottom);
+
+    var startX = e.clientX;
+    var startY = e.clientY;
+    var startDX = panelDX;
+    var startDY = panelDY;
+
+    e.preventDefault();            // a ⌘-drag inside the terminal would
+                                   // otherwise start a text selection
+    panelEl.classList.add("is-dragging");
+
+    // Capturing keeps the panel the target of a drag that has left it, which
+    // is also what keeps the grabbing cursor on. It is not what makes the
+    // drag work — the listeners below are on the window — so a browser that
+    // refuses the capture, and a synthetic pointer that has no capture to
+    // take, both still drag.
+    try { panelEl.setPointerCapture(e.pointerId); } catch (err) {}
+
+    function onMove(move) {
+      panelDX = Math.min(Math.max(startDX + move.clientX - startX, minDX), maxDX);
+      panelDY = Math.min(Math.max(startDY + move.clientY - startY, minDY), maxDY);
+      applyPanelOffset();
+    }
+
+    function onEnd() {
+      panelEl.classList.remove("is-dragging");
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
+  }
+
   // ------------------------------------------------------------ chips
 
   var themeChips = [];
@@ -550,7 +657,10 @@
       },
       { sep: true },
       { title: "Launch at Login", checkbox: true, checked: false, inert: true },
-      { title: "Reset Position", inert: true },
+      // Live, unlike the rows around it: the panel on this page really does
+      // move, so the row that puts it back really can. It is also the only way
+      // to undo a drag without a pointer.
+      { title: "Reset Position", act: resetPanelPosition },
       { title: "Edit Configuration…", inert: true },
       { title: "Check for Updates…", inert: true },
       { sep: true },
@@ -900,8 +1010,40 @@
 
     stage.appendChild(paletteEl);
     renderPalette(true);
+    positionPalette();
     paletteFilter.focus();
     if (paletteChip) paletteChip.setAttribute("aria-expanded", "true");
+  }
+
+  // `CommandPalette.show(above:)`, in the stage's coordinates: centered on the
+  // panel, 4pt above its top edge, held 8pt inside the edges, and flipped to
+  // *below* the panel when there is no room above. The app's version measures
+  // against the screen's visible frame; here the stage is the screen, because
+  // a palette that leaves it lands on the page's own text.
+  //
+  // Called once, at open, which is what the app does — the palette is sized
+  // and placed on presentation and does not follow the panel afterwards.
+  // Anchoring by `bottom` in the usual case is what keeps the palette's lower
+  // edge on the panel while filtering shortens the list; the flipped case
+  // anchors by `top` for the same reason, since it grows downward from there.
+  function positionPalette() {
+    var stageRect = stage.getBoundingClientRect();
+    var panelRect = panelEl.getBoundingClientRect();
+    var height = paletteEl.offsetHeight;
+
+    var left = (panelRect.left - stageRect.left)
+             + (panelRect.width - paletteEl.offsetWidth) / 2;
+    var maxLeft = Math.max(8, stageRect.width - paletteEl.offsetWidth - 8);
+    paletteEl.style.left = Math.min(Math.max(left, 8), maxLeft) + "px";
+
+    var top = panelRect.top - stageRect.top;
+    if (top - height - 4 < 8) {
+      paletteEl.style.top = (panelRect.bottom - stageRect.top + 4) + "px";
+      paletteEl.style.bottom = "auto";
+    } else {
+      paletteEl.style.bottom = (stageRect.height - top + 4) + "px";
+      paletteEl.style.top = "auto";
+    }
   }
 
   function closePalette(restoreFocus) {
@@ -1065,6 +1207,22 @@
 
   newTabEl.addEventListener("click", addTab);
 
+  // The strip is the drag handle everywhere a control is not. `closest` rather
+  // than a target comparison, because the "+" and the close × are drawn with
+  // pseudo-elements and a press can land on the button's own box.
+  tabsEl.addEventListener("pointerdown", function (e) {
+    if (e.target.closest(".dw-tab-btn, .dw-close, .dw-newtab")) return;
+    beginPanelDrag(e);
+  });
+
+  // ⌘ and drag, anywhere in the panel. Without the modifier this is a text
+  // selection in the terminal, which is `ChromeView.hitTest` declining the
+  // click.
+  panelEl.addEventListener("pointerdown", function (e) {
+    if (!e.metaKey) return;
+    beginPanelDrag(e);
+  });
+
   // Right-clicking anywhere in the panel opens Driftwood's settings menu, and
   // the browser's own context menu is suppressed for the same reason
   // ChromeView.hitTest claims right-clicks: without that, the terminal's menu
@@ -1129,7 +1287,8 @@
     tab: function () { showPanel(); addTab(); },
     "close-tab": function () { if (tabs.length) closeTab(active); },
     theme: function () { setTheme((themeIndex + 1) % themes.length); },
-    menu: function () { showPanel(); openMenuNearPanel(null); }
+    menu: function () { showPanel(); openMenuNearPanel(null); },
+    move: movePanelDemo
   };
 
   Array.prototype.forEach.call(
