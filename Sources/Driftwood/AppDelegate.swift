@@ -437,6 +437,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         focusLossWork?.cancel()
         focusLossWork = nil
         panel.alphaValue = 1
+        rescueFrameIfLost()
         panel.makeKeyAndOrderFront(nil)
         focusActiveSession()
         DebugLog.log(
@@ -592,6 +593,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + frameSaveDelay, execute: work)
     }
 
+    /// Put the panel back on a display if it is no longer on one.
+    ///
+    /// The display list changes while the app runs — a monitor is unplugged, a
+    /// laptop is undocked — and until now only launch re-checked the frame
+    /// against it, so a panel left on a display that went away stayed at
+    /// coordinates nothing could show until the next relaunch. Reset Position
+    /// could not fix it: that row is in the panel's own right-click menu, and
+    /// the panel is not there to right-click. See `PanelGeometry.isReachable`
+    /// for why this is a narrower test than the one at launch.
+    private func rescueFrameIfLost() {
+        let screens = NSScreen.screens.map {
+            PanelScreen(frame: $0.frame, visibleFrame: $0.visibleFrame)
+        }
+        guard !screens.isEmpty,
+              !PanelGeometry.isReachable(panel.frame, screens: screens) else { return }
+        DebugLog.log("rescue: panel frame \(panel.frame) is off every display")
+        resetPosition()
+    }
+
     @objc private func resetPosition() {
         let visible = NSScreen.main?.visibleFrame ?? PanelGeometry.fallbackVisibleFrame
         panel.setFrame(
@@ -631,6 +651,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             background.alphaComponent * CGFloat(state.opacity)
         )
         tintView.layer?.backgroundColor = background.cgColor
+        // **The blur follows the theme, not the system.** See
+        // `TerminalTheme.isLight`: an `NSVisualEffectView` reads its material
+        // from the effective appearance, so Paper over a Dark Mode `.hudWindow`
+        // came out grey instead of warm white. Pinning the appearance here
+        // makes a light theme blur light and a dark theme blur dark under
+        // either system setting. Set on the effect view alone — the panel and
+        // the terminal draw in explicit theme colors, and forcing an appearance
+        // on the whole window would also repaint AppKit's own menu chrome.
+        effectView.appearance = NSAppearance(named: theme.isLight ? .vibrantLight : .vibrantDark)
         tabBar.theme = theme
     }
 
@@ -811,10 +840,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func fireQuickCommand(id: String) {
         guard let command = quickCommands.first(where: { $0.id == id }) else { return }
         showPanel()
-        guard let session = sessions.active else { return }
-        session.send(text: command.command)
-        if command.runsImmediately { session.send(text: "\r") }
-        DebugLog.log("quick command \(id): \(command.runsImmediately ? "ran" : "typed")")
+        // A `newTab` command types into a shell that started microseconds ago,
+        // so it waits for that shell's prompt first. `TerminalSession.whenReady`
+        // says what happens without the wait: the tty echoes the command at the
+        // top of the screen and the shell draws it again at its prompt, one
+        // above the other. A command going into an existing tab is sent
+        // straight away — that shell has been running since its tab opened, and
+        // `whenReady` would return on the first poll anyway.
+        if command.opensNewTab {
+            newTab()
+            guard let session = sessions.active else { return }
+            session.whenReady { [weak session] in
+                guard let session else { return }
+                session.send(text: command.command)
+                if command.runsImmediately { session.send(text: "\r") }
+            }
+        } else {
+            guard let session = sessions.active else { return }
+            session.send(text: command.command)
+            if command.runsImmediately { session.send(text: "\r") }
+        }
+        DebugLog.log(
+            "quick command \(id): \(command.runsImmediately ? "ran" : "typed")"
+            + (command.opensNewTab ? " in a new tab" : "")
+        )
     }
 
     // MARK: - Hotkeys
@@ -849,8 +898,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
+        // **No ⌘Q, deliberately.** This row exists so the menu is well-formed;
+        // it is never drawn, because Driftwood never becomes the frontmost app.
+        // Giving it the usual key equivalent made ⌘Q a second, unremovable quit
+        // binding that fired whenever the panel held the keyboard — including
+        // for someone who had set `hotkeys.quit` to something else on purpose,
+        // and including a ⌘Q meant for the app they thought was in front. That
+        // costs every running shell in every tab, which is the same reason
+        // `Config.quit` is off by default. Quitting is the right-click menu's
+        // Quit Driftwood row, or `hotkeys.quit` if one is configured.
         appMenu.addItem(withTitle: "Quit Driftwood",
-                        action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+                        action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
 
         let editMenuItem = NSMenuItem()
         mainMenu.addItem(editMenuItem)
@@ -1031,10 +1089,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 command.title, #selector(fireQuickCommandFromMenu(_:)), hotkey: command.hotkey
             )
             entry.representedObject = command.id
-            // The row says whether picking it executes or only types. That
-            // difference is not visible from the title and is not undoable.
+            // The row says whether picking it executes or only types, and
+            // whether it opens a tab to do it in. Neither is visible from the
+            // title, and executing is not undoable.
             if #available(macOS 14.4, *) {
-                entry.subtitle = command.runsImmediately ? "Runs immediately" : "Types at the prompt"
+                let action = command.runsImmediately ? "Runs immediately" : "Types at the prompt"
+                entry.subtitle = command.opensNewTab ? "\(action), in a new tab" : action
             }
             submenu.addItem(entry)
         }

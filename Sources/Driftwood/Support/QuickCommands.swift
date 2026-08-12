@@ -12,13 +12,19 @@ struct QuickCommandConfig: Codable, Equatable {
     /// Whether to press Return after typing the command. See
     /// `QuickCommand.runsImmediately` for why this defaults to false.
     var run: Bool?
+    /// Whether to open a fresh tab first. See `QuickCommand.opensNewTab`.
+    var newTab: Bool?
 
-    init(id: String, title: String, command: String, hotkey: String? = nil, run: Bool? = nil) {
+    init(
+        id: String, title: String, command: String,
+        hotkey: String? = nil, run: Bool? = nil, newTab: Bool? = nil
+    ) {
         self.id = id
         self.title = title
         self.command = command
         self.hotkey = hotkey
         self.run = run
+        self.newTab = newTab
     }
 
     init(from decoder: Decoder) throws {
@@ -28,6 +34,7 @@ struct QuickCommandConfig: Codable, Equatable {
         command = try c.decodeIfPresent(String.self, forKey: .command) ?? ""
         hotkey = try c.decodeIfPresent(String.self, forKey: .hotkey)
         run = try c.decodeIfPresent(Bool.self, forKey: .run)
+        newTab = try c.decodeIfPresent(Bool.self, forKey: .newTab)
     }
 }
 
@@ -53,6 +60,24 @@ struct QuickCommand: Equatable {
     /// one word in `config.json`; opting out after a `rm -rf` fired from a
     /// keystroke is not.
     let runsImmediately: Bool
+
+    /// Whether firing this command opens a fresh tab to put it in, rather than
+    /// typing into whatever tab is active.
+    ///
+    /// Defaults to false, which is what every quick command did before this key
+    /// existed. It is worth turning on for a command you leave running —
+    /// `tail -f`, a dev server, a watcher — because otherwise the command lands
+    /// in a tab that is already doing something else. With `run` false that
+    /// means appending to a prompt that may already have text on it; with `run`
+    /// true it means sending a line to a shell that may be busy with a
+    /// foreground process, where whatever is running reads the text instead of
+    /// the shell.
+    ///
+    /// Independent of `runsImmediately`, and the two combine as written:
+    /// `newTab` on its own opens a tab and leaves the command typed at its
+    /// prompt, unexecuted. This key carries none of `run`'s safety weight,
+    /// because opening a tab executes nothing.
+    let opensNewTab: Bool
 }
 
 /// Parsing and validating the saved command list.
@@ -149,7 +174,8 @@ enum QuickCommands {
                 title: entry.title.isEmpty ? entry.command : entry.title,
                 command: entry.command,
                 hotkey: hotkey,
-                runsImmediately: entry.run ?? false
+                runsImmediately: entry.run ?? false,
+                opensNewTab: entry.newTab ?? false
             ))
         }
 

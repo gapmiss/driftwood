@@ -103,6 +103,58 @@ final class TerminalSession: NSObject, LocalProcessTerminalViewDelegate {
         view.send(txt: text)
     }
 
+    /// Call `body` once the shell has drawn something, or after `timeout`.
+    ///
+    /// **Typing into a shell that has not started yet echoes twice.** The
+    /// pseudo-terminal opens in canonical mode with echo on, so characters
+    /// written before the shell takes over the line discipline are echoed by
+    /// the tty at the top of the screen; the shell then reads the same line and
+    /// draws it again at its prompt. Both the stray line and the real one are
+    /// visible, one above the other, and with `run: true` the command runs
+    /// once — the input is never lost, it is only shown twice. That is what a
+    /// quick command with `newTab` did before this existed.
+    ///
+    /// Readiness is the cursor having moved off (0, 0), which any prompt does.
+    /// SwiftTerm publishes no "process started" or "data received" callback to
+    /// wait on — `LocalProcessTerminalViewDelegate` carries four methods and
+    /// none of them is about output — so this polls the terminal's own cursor
+    /// position, which is public. `pollInterval` is short enough to be
+    /// invisible next to a shell start.
+    ///
+    /// The timeout matters as much as the wait: a login shell sourcing a slow
+    /// profile must not swallow the command, so after `timeout` the text is
+    /// sent regardless and the worst case is the double echo above. A session
+    /// whose shell exited while we waited gets nothing.
+    func whenReady(
+        timeout: TimeInterval = 2.0, pollInterval: TimeInterval = 0.02,
+        _ body: @escaping () -> Void
+    ) {
+        let deadline = Date().addingTimeInterval(timeout)
+        // A `Task` on the main actor rather than a `DispatchQueue.asyncAfter`
+        // that re-schedules itself: the recursive version has to hand a local
+        // function to another actor's queue, which is a `Sendable` warning this
+        // repo cannot afford — a clean build emits exactly one warning and it
+        // is a different one (see `Package.swift`).
+        Task { @MainActor [weak self] in
+            while true {
+                // Held weakly: a tab closed while its command waited takes the
+                // session with it, and there is nothing left to type into.
+                guard let self, !hasExited else { return }
+                let cursor = view.getTerminal().getCursorLocation()
+                if cursor.x != 0 || cursor.y != 0 { break }
+                guard Date() < deadline else {
+                    DebugLog.log(
+                        "session \(id.uuidString.prefix(8)): "
+                        + "no output after \(timeout)s, sending anyway"
+                    )
+                    break
+                }
+                try? await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+            }
+            body()
+        }
+    }
+
     /// The working directory a new tab should inherit from this one: the
     /// reported directory when there is one, else the caller's fallback.
     func inheritableDirectory(fallback: String) -> String {

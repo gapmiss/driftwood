@@ -121,6 +121,62 @@
     stage.style.setProperty("--dw-opacity", String(value));
   }
 
+  // ------------------------------------------------------- When Unfocused ▸
+
+  // `AppState.FocusLossBehavior` and the menu it is set from. The three values
+  // and their menu titles are hand-copied from `FocusLossBehavior.menuTitle`.
+  var FOCUS_LOSS_CHOICES = [
+    { id: "nothing", title: "Stay Visible" },
+    { id: "dim", title: "Dim" },
+    { id: "hide", title: "Hide" }
+  ];
+  var onFocusLoss = "nothing";              // the app's default
+  var FOCUS_LOSS_DELAY = 200;               // AppDelegate.focusLossDelay
+  var DIM_OPACITY = 0.8;                    // Config.dimOpacity's default
+  var focusLossTimer = null;
+
+  function setFocusLoss(id) {
+    onFocusLoss = id;
+    // Picking Stay Visible while the panel is dimmed has to undo the dim, or
+    // the setting reads as having done nothing — `selectFocusLoss` in the app.
+    cancelFocusLoss();
+    undim();
+  }
+
+  function undim() {
+    panelEl.style.removeProperty("opacity");
+  }
+
+  function cancelFocusLoss() {
+    if (focusLossTimer) clearTimeout(focusLossTimer);
+    focusLossTimer = null;
+  }
+
+  // Is the panel in use, whether or not it holds the keyboard? The wider
+  // question `AppDelegate.panelIsInUse` asks, for the same reason: the palette
+  // survives losing focus, and hiding the panel out from under an open palette
+  // takes the palette and a half-typed filter with it. The tracking menu is
+  // the app's `menuIsTracking` flag.
+  function panelIsInUse() {
+    if (menuEl || paletteEl) return true;
+    var focused = document.activeElement;
+    return !!focused && (panelEl.contains(focused) || focused === panelEl);
+  }
+
+  // Deferred and re-checked, the way the app defers: at the instant focus
+  // leaves the terminal the element taking it may not have arrived yet, so
+  // acting immediately hides the panel out from under its own palette.
+  function noteFocusLost() {
+    if (onFocusLoss === "nothing" || panelIsHidden()) return;
+    cancelFocusLoss();
+    focusLossTimer = setTimeout(function () {
+      focusLossTimer = null;
+      if (panelIsInUse()) return;
+      if (onFocusLoss === "hide") hidePanel();
+      else panelEl.style.opacity = String(DIM_OPACITY);
+    }, FOCUS_LOSS_DELAY);
+  }
+
   // ------------------------------------------------------------ the model
 
   // A line is an array of segments. A segment is {t: text} in the foreground
@@ -425,6 +481,11 @@
       renderTabs();
       renderTerm();
     }
+    // A panel hidden while dimmed would come back dimmed and stay that way
+    // until the next focus change, which is `AppDelegate.showPanel`'s
+    // `panel.alphaValue = 1`.
+    cancelFocusLoss();
+    undim();
     panelEl.classList.remove("is-hidden");
     panelEl.removeAttribute("inert");
     if (hintEl) hintEl.hidden = true;
@@ -644,6 +705,14 @@
           };
         })
       },
+      {
+        title: "When Unfocused", submenu: FOCUS_LOSS_CHOICES.map(function (choice) {
+          return {
+            title: choice.title, radio: true, checked: choice.id === onFocusLoss,
+            act: function () { setFocusLoss(choice.id); }
+          };
+        })
+      },
       { sep: true },
       {
         title: "New Tab", key: "⌃⌥N",
@@ -808,7 +877,7 @@
     var rect = sub.getBoundingClientRect();
     if (rect.right > stageRect.right) {
       sub.style.left = "auto";
-      sub.style.right = "100%";
+      sub.style.right = "calc(100% + 6px)";   // the gap `.dw-submenu` sets, mirrored
     }
     if (focusFirst) {
       var items = menuItemsOf(sub);
@@ -1201,6 +1270,15 @@
   });
   inputEl.addEventListener("blur", function () {
     termEl.classList.remove("is-focused");
+    noteFocusLost();
+  });
+  // Focus coming back anywhere in the panel undoes a dim and cancels a pending
+  // one, which is what the app's summon and its menu-tracking flag between them
+  // do. Without it, clicking from the terminal to the tab strip and back would
+  // leave the panel faded.
+  panelEl.addEventListener("focusin", function () {
+    cancelFocusLoss();
+    undim();
   });
 
   // Clicking anywhere in the terminal puts the keyboard at the prompt, the way

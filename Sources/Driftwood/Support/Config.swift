@@ -47,6 +47,10 @@ struct Config: Codable, Equatable {
     /// shell — no confirmation, and possibly while the panel is hidden. Left
     /// false, the command is typed at the prompt for you to read and run
     /// yourself. `QuickCommand.runsImmediately` carries the full account.
+    ///
+    /// `newTab` defaults to false as well, and is a convenience rather than a
+    /// safety default: with it the command gets a fresh tab of its own instead
+    /// of landing in whatever tab is active. See `QuickCommand.opensNewTab`.
     var quickCommands: [QuickCommandConfig]?
     /// Global hotkey bindings, hand-editable: "modifier+modifier+key". At
     /// least one of control/option/command is required (shift alone doesn't

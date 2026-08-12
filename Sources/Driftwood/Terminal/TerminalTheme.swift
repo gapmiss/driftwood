@@ -71,6 +71,32 @@ struct TerminalTheme {
     /// The ANSI role names a custom theme spells in `config.json`, in palette
     /// order. Also the order `ansi` itself is in, so the two cannot drift.
     static let ansiRoleNames: [String] = (0..<swiftTermPaletteSize).map { "ansi\($0)" }
+
+    /// Is this a light theme — that is, does `background` sit on the bright
+    /// side of mid-grey?
+    ///
+    /// **What this drives is the window blur, not any color in the palette.**
+    /// `NSVisualEffectView` picks its material from the effective appearance,
+    /// so in Dark Mode `.hudWindow` blurs to something near-black. Paper's
+    /// tint is translucent by design — alpha 224, scaled further by the
+    /// Opacity setting — so in Dark Mode it composited over that dark blur and
+    /// the "warm paper" background rendered as flat grey, while the same
+    /// settings in Light Mode looked as intended. `AppDelegate.applyTheme`
+    /// pins the effect view's appearance from this flag, so a theme's own
+    /// lightness decides the blur underneath it and the panel looks the same
+    /// whatever the system is set to.
+    ///
+    /// Relative luminance with the usual sRGB weights, thresholded at the
+    /// midpoint. Alpha is ignored on purpose: this asks what the theme is
+    /// trying to be, not how much of it is showing. A custom theme gets the
+    /// same treatment for free, since this reads whatever `background` ended
+    /// up as after the override merge.
+    var isLight: Bool {
+        let r = Double(background.r) / 255
+        let g = Double(background.g) / 255
+        let b = Double(background.b) / 255
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5
+    }
 }
 
 // MARK: - Built-in themes

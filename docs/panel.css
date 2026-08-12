@@ -439,10 +439,17 @@
 .dw-menuwrap { position: relative; }
 
 /* A submenu opens to the right of its parent row, clamped back inside the
-   stage by driftwood.js when there is no room. */
+   stage by driftwood.js when there is no room.
+
+   The 6px gap is this page's own: NSMenu overlaps its parent by a few points
+   instead. Two panels of the same color with a hairline between them read as
+   one shape on a web page, where there is no window shadow between them to
+   separate the two. Nothing depends on the pointer travelling from the row to
+   the submenu without leaving either — a submenu closes when another row is
+   hovered, not when the pointer leaves this one. */
 .dw-submenu {
   top: 0;
-  left: 100%;
+  left: calc(100% + 6px);
   min-width: 150px;
 }
 
@@ -456,6 +463,15 @@
                                      which NSMenu reserves whether or not any
                                      row in the menu is checked */
   font: inherit;
+  /* A row is 23px tall: 13px text on a 1.15 line box, plus 4px above and
+     below. NSMenu's own rows measure 22.5pt at this font size, and the page's
+     body line-height of 1.6 was making them 29px — a menu a quarter taller
+     than the one it re-creates.
+
+     **After `font: inherit`, not before.** `font` is a shorthand, so it resets
+     `line-height` to whatever it inherits; declared above this line it undid
+     it silently and the rows stayed 29px. */
+  line-height: 1.15;
   color: inherit;
   text-align: left;
   background: none;
@@ -469,9 +485,10 @@
   outline: none;
 }
 
-/* Inert rows: everything the re-creation cannot honestly do — the three
-   checkmarked toggles, Reset Position, Edit Configuration…, Check for
-   Updates… and Quit. They are drawn dimmed and marked aria-disabled rather
+/* Inert rows: everything the re-creation cannot honestly do — Launch at Login,
+   Edit Configuration…, Check for Updates… and Quit. Theme, Font Size, Opacity,
+   When Unfocused, New Tab, Quick Commands and Reset Position are all live on
+   this page. They are drawn dimmed and marked aria-disabled rather
    than removed, because the menu is also the guide to what the real menu
    contains. Arrow keys still land on them, which is how NSMenu behaves. */
 .dw-menuitem[aria-disabled="true"] { color: var(--text-tertiary); }
@@ -505,6 +522,7 @@
    sentence that says which rows above it are real. */
 .dw-menu-version {
   padding: 4px 12px 4px 26px;
+  line-height: 1.15;              /* the row height `.dw-menuitem` sets */
   color: var(--text-tertiary);
 }
 .dw-menu-note {

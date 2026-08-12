@@ -97,6 +97,17 @@ struct Check {
               && TerminalTheme.ansiRoleNames.first == "ansi0"
               && TerminalTheme.ansiRoleNames.last == "ansi15",
               "ansiRoleNames spans ansi0…ansi15")
+
+        // `isLight` picks the window blur's appearance, so a theme classed
+        // wrongly is the Paper-in-Dark-Mode bug again: a pale tint over a
+        // near-black blur, rendering grey.
+        check(TerminalTheme.paper.isLight, "Paper is classed as a light theme")
+        for theme in [TerminalTheme.driftwoodNight, .ember, .mono] {
+            check(!theme.isLight, "\(theme.id) is classed as a dark theme")
+        }
+        check(TerminalTheme.resolvedTheme(
+                id: "paper", overrides: ["background": "#101010"]).isLight == false,
+              "an override that darkens the background flips the theme to dark")
     }
 
     // MARK: - Custom theme registration
@@ -391,7 +402,12 @@ struct Check {
         let fallback = PanelGeometry.defaultFrame(size: size, onVisible: main.visibleFrame)
 
         check(fallback.midX == main.visibleFrame.midX, "the default frame is horizontally centered")
-        check(fallback.midY < main.visibleFrame.midY, "the default frame sits in the lower half")
+        check(fallback.midY == main.visibleFrame.midY, "the default frame is vertically centered")
+        // The bug the centering replaced: the old placement computed an origin
+        // below the visible area at the default size, so first launch and Reset
+        // Position both put part of the panel under the Dock.
+        check(main.visibleFrame.contains(fallback),
+              "the default frame lands entirely inside the visible area")
 
         func validated(_ saved: CGRect?, _ screens: [PanelScreen]) -> CGRect {
             PanelGeometry.validatedFrame(
@@ -437,6 +453,22 @@ struct Check {
             width: 600, height: 300)
         check(validated(grabbable, [main]) != fallback,
               "a frame with 80pt showing is rescued rather than reset")
+
+        // The summon-time rescue (`AppDelegate.rescueFrameIfLost`). Narrower
+        // than the launch-time check above: it only asks whether the panel can
+        // be found and clicked, so a frame hanging off an edge passes and is
+        // left where the user put it.
+        check(PanelGeometry.isReachable(good, screens: [main]),
+              "a frame fully on screen is reachable")
+        check(PanelGeometry.isReachable(hanging, screens: [main]),
+              "a frame hanging off an edge is still reachable, and is not moved on summon")
+        check(!PanelGeometry.isReachable(stranded, screens: [main, second]),
+              "a frame on no display is unreachable and gets reset on the next summon")
+        check(PanelGeometry.isReachable(onSecond, screens: [main, second])
+              && !PanelGeometry.isReachable(onSecond, screens: [main]),
+              "unplugging the display a panel is on makes it unreachable")
+        check(!PanelGeometry.isReachable(sliver, screens: [main]),
+              "a 4pt sliver is not enough of the panel to count as reachable")
 
         // A panel wider than the display keeps its width and pins its origin.
         let oversize = CGRect(x: -100, y: 100, width: 2000, height: 300)
@@ -506,6 +538,24 @@ struct Check {
             from: Data(#"[{"id":"a","title":"A","command":"echo hi"}]"#.utf8))
         check(QuickCommands.validate(decoded ?? []).commands.first?.runsImmediately == false,
               "an entry decoded from config.json without \"run\" still defaults to typing")
+
+        // `newTab`, which is independent of `run` and carries none of its
+        // weight: opening a tab executes nothing.
+        check(ok.commands.first?.opensNewTab == false,
+              "an entry without \"newTab\" uses the tab that is already active")
+        check(validate([QuickCommandConfig(
+                id: "x", title: "X", command: "tail -f log", newTab: true)])
+                .commands.first?.opensNewTab == true,
+              "\"newTab\": true opts in to opening a tab first")
+        let both = validate([QuickCommandConfig(
+            id: "x", title: "X", command: "tail -f log", run: true, newTab: true)]).commands.first
+        check(both?.opensNewTab == true && both?.runsImmediately == true,
+              "\"run\" and \"newTab\" combine as written rather than one implying the other")
+        let decodedNewTab = try? JSONDecoder().decode(
+            [QuickCommandConfig].self,
+            from: Data(#"[{"id":"a","command":"echo hi","newTab":true}]"#.utf8))
+        check(QuickCommands.validate(decodedNewTab ?? []).commands.first?.opensNewTab == true,
+              "\"newTab\" survives the JSON path, which is the only way a real entry arrives")
 
         // Dropped entries.
         let dupe = validate([

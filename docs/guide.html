@@ -435,6 +435,13 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
       "hotkey": "control+option+2",
       "run": true
     },
+    {
+      "id": "server",
+      "title": "Dev server",
+      "command": "npm run dev",
+      "run": true,
+      "newTab": true
+    },
     { "id": "list", "title": "List files", "command": "ls" }
   ]
 }</code></pre>
@@ -457,6 +464,13 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr><td><code>run</code></td><td>No</td>
               <td>Whether to press Return after typing. <strong>Defaults to false.</strong> Read the
                   next heading before setting it.</td></tr>
+          <tr><td><code>newTab</code></td><td>No</td>
+              <td>Whether to open a fresh tab and put the command in that, rather than in the tab
+                  that is already active. Defaults to false. Worth turning on for anything you leave
+                  running &mdash; a <code>tail -f</code>, a dev server, a watcher &mdash; which
+                  otherwise lands in a tab that is busy with something else. Independent of
+                  <code>run</code>: on its own it opens a tab and leaves the command typed at that
+                  tab's prompt, unexecuted.</td></tr>
         </tbody>
       </table>
     </div>
@@ -477,6 +491,10 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
 
     <p>The panel is always summoned before a quick command fires, whichever way <code>run</code> is
        set, so a command never runs into a window you cannot see.</p>
+
+    <p>With <code>"newTab": true</code> Driftwood waits for the new tab's prompt before typing, up to
+       two seconds. A shell that takes longer than that &mdash; a login profile doing real work &mdash;
+       gets the command anyway rather than losing it.</p>
 
     <h3>The palette</h3>
 
@@ -501,7 +519,8 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
     </div>
 
     <p>Every row is labeled <strong>runs</strong> or <strong>types</strong>, so which of the two
-       things Return is about to do is visible before you press it. You can try this on the
+       things Return is about to do is visible before you press it. A row that also says
+       <strong>new tab</strong> opens one rather than using the tab you are in. You can try this on the
        <a href="./">front page</a>: the hero re-creates the palette with the same three sample
        commands.</p>
 
@@ -761,7 +780,10 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr><td>Launch at Login</td>
               <td>Registers Driftwood to start with the session. Off by default, and it outlives the
                   app bundle — turn it off before you delete the app.</td></tr>
-          <tr><td>Reset Position</td><td>Back to 720&times;360, centred on the main display.</td></tr>
+          <tr><td>Reset Position</td>
+              <td>Back to 720&times;360, centred on the main display &mdash; the position it launches
+                  in the first time. Summoning the panel does this for you if it is on no display at
+                  all, so a monitor you unplugged cannot strand it.</td></tr>
           <tr><td>Edit Configuration&hellip;</td>
               <td>Opens <code>config.json</code> in whichever app owns <code>.json</code>.</td></tr>
           <tr><td>Check for Updates&hellip;</td>
@@ -797,10 +819,16 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>+</kbd></span> /
                   <span class="keys"><kbd>&#x2318;</kbd><kbd>&#x2212;</kbd></span></td>
               <td>Font size up / down, through the presets</td></tr>
-          <tr><td><span class="keys"><kbd>&#x2318;</kbd><kbd>Q</kbd></span></td><td>Quit</td></tr>
         </tbody>
       </table>
     </div>
+
+    <p><span class="keys"><kbd>&#x2318;</kbd><kbd>Q</kbd></span> is deliberately not one of these.
+       Quitting ends every shell in every tab, and the panel takes the keyboard without your frontmost
+       app looking any different &mdash; so a <span class="keys"><kbd>&#x2318;</kbd><kbd>Q</kbd></span>
+       aimed at the app you thought was in front would have hit Driftwood instead. Quit from the
+       right-click menu, or set the <code>quit</code> hotkey in <code>config.json</code>, which is
+       empty by default for the same reason.</p>
   </section>
 
   <!-- ================================================================== -->
@@ -821,10 +849,10 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr>
             <td>I can't find the panel</td>
             <td><span class="keys"><kbd>&#x2303;</kbd><kbd>&#x2325;</kbd><kbd>T</kbd></span>. If that
-                does nothing, the row above is why. If the panel is somewhere off-screen, right-click
-                it if you can reach any part of it and choose Reset Position; otherwise
-                <code>pkill -x Driftwood</code> and relaunch, which re-validates the saved
-                frame.</td>
+                does nothing, the row above is why. A panel that is on no display &mdash; because the
+                monitor it was on is gone &mdash; is put back at its default position by that same
+                keypress. One merely hanging off an edge is left where it is: right-click any part of
+                it you can reach and choose Reset Position.</td>
           </tr>
           <tr>
             <td>A theme I added doesn't appear</td>

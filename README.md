@@ -105,6 +105,8 @@ Each entry needs an `id`, a `title` and a `command`. `hotkey` is optional; witho
 
 Opting in is one word. Opting out after an `rm -rf` fired from a keystroke is not.
 
+**`"newTab": true` gives the command a fresh tab instead of the active one.** Off by default. Turn it on for anything you leave running — a `tail -f`, a dev server, a watcher — which otherwise lands in a tab that is busy with something else: with `run` false it appends to whatever is already typed at that prompt, and with `run` true it goes to the foreground process rather than to the shell. It is independent of `run`, so `newTab` on its own opens a tab and leaves the command typed there, unexecuted.
+
 ## Debugging
 
 Set `"debug": true` and Driftwood writes to `~/Library/Logs/Driftwood/driftwood.log`:

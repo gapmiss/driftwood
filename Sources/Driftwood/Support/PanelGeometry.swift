@@ -40,17 +40,28 @@ enum PanelGeometry {
     /// mid-reconfiguration, and a plausible rect beats a crash or a zero rect.
     static let fallbackVisibleFrame = CGRect(x: 0, y: 0, width: 1440, height: 900)
 
-    /// Centered horizontally in the lower third of the given visible area.
+    /// Centered in the given visible area, in both axes.
     ///
-    /// Low rather than centered because a terminal is a thing you glance at
-    /// while working in the window behind it, and the lower third is where a
-    /// Dock-adjacent panel would have been — Driftwood is not glued there any
-    /// more, but that is still where the eye expects to find it on first
-    /// launch.
+    /// This is where the panel lands on first launch, where Reset Position
+    /// puts it, and where a saved frame that cannot be trusted falls back to,
+    /// so it has to be somewhere obvious from any of those three directions.
+    /// The middle of the screen is that place: it is the position you would
+    /// describe without measuring, and it is the furthest a fixed point can be
+    /// from every edge the panel could get lost behind.
+    ///
+    /// **It used to sit low, and the arithmetic did not do what its comment
+    /// said.** The rationale was that a terminal is glanced at over the window
+    /// behind it, so the lower third is where the eye looks — but the y it
+    /// computed put the panel's *center* one sixth of the way up the visible
+    /// area, not the panel itself in the lower third. At the default 360pt
+    /// height on a 900pt display that is an origin near −34: the bottom of the
+    /// panel started below the visible area, under the Dock. So "lower third"
+    /// shipped as "hanging off the bottom edge", which is what Reset Position
+    /// appeared to do to a panel rather than rescue it from.
     static func defaultFrame(size: CGSize, onVisible visible: CGRect) -> CGRect {
         CGRect(
             x: visible.midX - size.width / 2,
-            y: visible.minY + visible.height / 6 - size.height / 2,
+            y: visible.midY - size.height / 2,
             width: size.width,
             height: size.height
         )
@@ -119,15 +130,38 @@ enum PanelGeometry {
         guard let saved, saved.width > 0, saved.height > 0 else {
             return defaultFrame(size: defaultSize, onVisible: mainVisible)
         }
-        let host = screens.first { screen in
-            let overlap = screen.frame.intersection(saved)
-            return !overlap.isNull
-                && overlap.width >= min(minimumVisibleExtent, saved.width)
-                && overlap.height >= min(minimumVisibleExtent, saved.height)
-        }
-        guard let host else {
+        guard let host = hostScreen(for: saved, screens: screens) else {
             return defaultFrame(size: defaultSize, onVisible: mainVisible)
         }
         return clampedFrame(saved, onVisible: host.visibleFrame)
+    }
+
+    /// The display a frame is considered to live on: the first one showing at
+    /// least `minimumVisibleExtent` of it in both axes, or nothing.
+    static func hostScreen(for frame: CGRect, screens: [PanelScreen]) -> PanelScreen? {
+        screens.first { screen in
+            let overlap = screen.frame.intersection(frame)
+            return !overlap.isNull
+                && overlap.width >= min(minimumVisibleExtent, frame.width)
+                && overlap.height >= min(minimumVisibleExtent, frame.height)
+        }
+    }
+
+    /// Is enough of this frame on some display to find and click?
+    ///
+    /// Asked at every summon, not only at launch. Reset Position is the row
+    /// that puts a lost panel back, and it lives in the panel's own right-click
+    /// menu — which is exactly what you cannot reach when the panel is off
+    /// screen. There is no Dock icon and no window list either, so without this
+    /// the recovery path required quitting and editing `state.json` by hand.
+    /// The summon hotkey now performs the rescue on its own.
+    ///
+    /// Deliberately narrower than what `validatedFrame` does at launch: this
+    /// only asks whether the panel is reachable at all. A panel tucked under
+    /// the Dock or hanging a little off an edge passes, and is left alone,
+    /// because sliding it on every press would move a window the user put
+    /// there.
+    static func isReachable(_ frame: CGRect, screens: [PanelScreen]) -> Bool {
+        hostScreen(for: frame, screens: screens) != nil
     }
 }

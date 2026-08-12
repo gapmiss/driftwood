@@ -307,8 +307,12 @@ private struct PaletteView: View {
             Spacer()
             // Says out loud what ⏎ will do. A command that only types itself
             // and one that executes on the spot are the same click away, and
-            // the difference is not recoverable after the fact.
-            Text(command.runsImmediately ? "runs" : "types")
+            // the difference is not recoverable after the fact. Where it lands
+            // is here for the same reason: a command that opens its own tab
+            // leaves the tab you were in untouched, and one that does not can
+            // append to a line you had half typed.
+            Text((command.runsImmediately ? "runs" : "types")
+                 + (command.opensNewTab ? " · new tab" : ""))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
             if let hotkey = command.hotkey, let display = HotkeySpec.display(hotkey) {
