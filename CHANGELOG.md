@@ -2,6 +2,12 @@
 
 All notable changes to Driftwood are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The tab strip always keeps somewhere to grab. The strip is the panel's drag handle, and the tabs used to divide all of it except the "+" — at the default panel width three tabs came to 178pt each, just under the 180pt cap, so they filled the strip exactly and left nothing to drag. Opening a third tab silently took away the only way to move the panel that is visible on screen, leaving ⌘-drag as the only one left. 44pt beside the "+" is now reserved and the tabs share what is left, which makes each of three tabs 164pt instead of 178pt. Past eight tabs they still overflow off the right edge, as before.
+
 ## [0.2.0] — 2026-08-11
 
 ### Added

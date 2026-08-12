@@ -178,9 +178,13 @@
 .dw-tabs[hidden] { display: none; }
 
 /* Tabs share the strip evenly, capped at 180px and floored at 60px, from
-   TabBar.tabWidth. The tab and its close button are siblings rather than one
-   nested inside the other: both are real buttons, and a button inside a
-   button is invalid markup that browsers resolve by dropping one of them. */
+   TerminalMetrics.tabWidth. `flex: 1 1 0` against the fixed-width gap and "+"
+   beside them is the same arithmetic: the tabs divide whatever those two have
+   not taken.
+
+   The tab and its close button are siblings rather than one nested inside the
+   other: both are real buttons, and a button inside a button is invalid markup
+   that browsers resolve by dropping one of them. */
 .dw-tab {
   position: relative;
   display: flex;
@@ -245,10 +249,17 @@
   background: rgb(var(--dw-tab-text-rgb) / 0.8);
 }
 
-/* The "+", 24px wide (TabBar.newTabButtonWidth). `margin-left: auto` pins it
-   to the right edge, which is where TabBar.newTabRect puts it — the gap it
-   leaves between the last tab and the "+" is the strip's empty region, and in
-   the app that region is the window's drag handle. */
+/* Strip the tabs may never take, held between the last tab and the "+" so the
+   drag handle survives a panel full of tabs — TerminalMetrics.tabStripDragHandle.
+   `flex: 0 0` so it neither grows nor shrinks; slack past the tabs' 180px cap
+   still collects to its right, which makes the empty region one continuous
+   piece rather than two. */
+.dw-drag-gap {
+  flex: 0 0 44px;
+}
+
+/* The "+", 24px wide (TerminalMetrics.newTabButtonWidth). `margin-left: auto`
+   pins it to the right edge, which is where TabBar.newTabRect puts it. */
 .dw-newtab {
   position: relative;
   width: 24px;

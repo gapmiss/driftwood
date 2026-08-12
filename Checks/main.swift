@@ -285,6 +285,32 @@ struct Check {
         check(TerminalMetrics.tabBarFrame(in: bounds).maxY == bounds.maxY,
               "the tab strip is flush with the top edge")
 
+        // Tab widths, and the drag handle they must leave behind. The strip is
+        // the window's drag handle, so a tab count that fills it edge to edge
+        // takes the only way to move the panel that a user is likely to find.
+        // 560 is the default panel width, where three even tabs used to come to
+        // 178pt each — under the 180pt cap, so they fitted exactly and left
+        // nothing over.
+        let strip: CGFloat = 560
+        for count in 1...8 {
+            let width = TerminalMetrics.tabWidth(inStripOfWidth: strip, tabCount: count)
+            let handle = strip - width * CGFloat(count) - TerminalMetrics.newTabButtonWidth
+            check(handle >= TerminalMetrics.tabStripDragHandle - 0.001,
+                  "\(count) tab(s) in a 560pt strip leave the drag handle intact")
+            check(width >= TerminalMetrics.minimumTabWidth,
+                  "\(count) tab(s) stay at or above the minimum tab width")
+        }
+        check(TerminalMetrics.tabWidth(inStripOfWidth: strip, tabCount: 1)
+                == TerminalMetrics.maximumTabWidth,
+              "one tab is capped rather than stretched across the panel")
+        check(TerminalMetrics.tabWidth(inStripOfWidth: strip, tabCount: 0) == 0,
+              "no tabs is a zero width, so the caller needs no special case")
+        // Past the floor the tabs overflow, which is visible and recoverable.
+        // The check is that they overflow rather than shrinking to nothing.
+        check(TerminalMetrics.tabWidth(inStripOfWidth: strip, tabCount: 20)
+                == TerminalMetrics.minimumTabWidth,
+              "beyond the floor tabs run off the right edge instead of shrinking further")
+
         // Edge detection.
         let box = CGRect(x: 0, y: 0, width: 100, height: 100)
         check(TerminalMetrics.resizeEdges(at: CGPoint(x: 50, y: 50), in: box).isEmpty,

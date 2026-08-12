@@ -114,6 +114,45 @@ enum TerminalMetrics {
         )
     }
 
+    /// The "+" at the right end of the tab strip.
+    static let newTabButtonWidth: CGFloat = 24
+
+    /// Strip that the tabs may never take, kept between the last tab and the
+    /// "+" so there is always somewhere to grab the window.
+    ///
+    /// The strip is the window's drag handle, and before this the handle was
+    /// whatever the tabs happened to leave over. That is generous at two tabs
+    /// and *nothing* at three: tabs share the strip evenly, so at the default
+    /// 560pt panel three tabs come to 178pt each — under the 180pt cap, so
+    /// they fill the strip exactly and the drag handle disappears. Opening a
+    /// third tab silently cost you the ability to move the window by the strip,
+    /// leaving ⌘-drag as the only way, and ⌘-drag is the one a user is least
+    /// likely to know about.
+    ///
+    /// 44pt is a target you can hit without aiming. It comes out of the tabs:
+    /// three tabs are 164pt each instead of 178pt. Below `minimumTabWidth`
+    /// there is nothing left to give, and the tabs overflow into this gap and
+    /// then off the right edge, which is what they already did.
+    static let tabStripDragHandle: CGFloat = 44
+
+    /// A single tab does not stretch to the full panel width, and eight tabs
+    /// stay wide enough to aim at. Between those two the tabs share whatever
+    /// the "+" and the drag handle have not taken.
+    ///
+    /// Below the floor the strip runs off the right edge, which is visible and
+    /// recoverable; shrinking further would produce tabs too small to click.
+    static let minimumTabWidth: CGFloat = 60
+    static let maximumTabWidth: CGFloat = 180
+
+    /// The width of one tab in a strip this wide. Zero tabs is zero, so the
+    /// caller can multiply without a special case.
+    static func tabWidth(inStripOfWidth width: CGFloat, tabCount: Int) -> CGFloat {
+        guard tabCount > 0 else { return 0 }
+        let available = width - newTabButtonWidth - tabStripDragHandle
+        let even = available / CGFloat(tabCount)
+        return min(max(even, minimumTabWidth), maximumTabWidth)
+    }
+
     /// The tab strip's frame: full width, flush with the top edge.
     static func tabBarFrame(in bounds: CGRect) -> CGRect {
         CGRect(

@@ -132,6 +132,7 @@ Each line is a verdict you can act on without opening anything, plus where the f
 - The selection band is tuned to two measured contrast ratios, and its alpha composites over the wallpaper rather than over the theme background → `Sources/Driftwood/Terminal/TerminalTheme.swift:selection`
 - `$SHELL` is exported from the same setting that launches the shell, so the two cannot drift; several completion scripts misbehave without it → `Sources/Driftwood/AppDelegate.swift:childEnvironment`
 - The tab strip is drawn rather than an `NSStackView`, because it also has to be the window's drag handle → `Sources/Driftwood/Terminal/TabBar.swift:TabBar`
+- 44pt of the strip is reserved beside the "+" and the tabs may not take it. Sharing the whole strip left *no* drag handle at three tabs, which is where the even width first lands under the 180pt cap → `Sources/Driftwood/Terminal/TerminalMetrics.swift:tabStripDragHandle`
 
 ### Themes and settings
 
@@ -189,6 +190,7 @@ Nothing below the compiler verifies these; `make check` cannot reach the panel, 
   ```
 
 - **Serve `docs/` and drive the DOM for anything about state.** A screenshot cannot settle "are all twelve menu rows there" or "did ⌃⌥1 type without running". Run `python3 -m http.server 8731` from inside `docs/`, add a temporary wrapper page in `docs/` — it has to be same-origin for its script to reach the iframe's DOM — holding an `<iframe>` of the page under test, write the driver's findings into a `<div>`, and read them back with `--dump-dom` in place of `--screenshot`. Delete the wrapper afterward. Review over the server rather than `file://` for the same reason: a browser gives each `file://` document its own storage partition, so the light/dark choice does not carry from one page to the other and `mode.js` looks broken when it is not.
+- **The hero's panel is draggable, and its position is `--dw-dx`/`--dw-dy` folded into the transform that centers it.** A second `transform` declaration on `.dw-panel` replaces that one and sends a moved panel back to the middle, which is why `.is-hidden` repeats the offset in its own slide. The palette is placed from the panel's measured frame at open, mirroring `CommandPalette.show(above:)`; it used to sit at a hardcoded distance from the stage, which a moving panel leaves behind.
 - **No color literal in `panel.css`.** Every color reads a `--dw-*` custom property that `driftwood.js` sets from the generated `docs/themes.js`, so the site's palettes cannot disagree with the app's. `make check` fails when that file is stale — run `make site`.
 - **`#out` is an `aria-live` log region: append, never re-render.** Replacing every node makes a screen reader recite the whole scrollback, so a tab switch would read the other tab's history aloud. `appendLines` is the normal path; `renderTerm` is the wholesale redraw, and it switches the region off and re-arms it on the next frame.
 - **`.dw-line` is `white-space: pre-wrap`**, so a newline or an indent inside the element renders as a real line break and a real indent. Write the contents of a `.dw-line` on one source line.

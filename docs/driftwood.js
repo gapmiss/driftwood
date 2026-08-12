@@ -355,6 +355,14 @@
       tabsEl.appendChild(wrap);
     });
 
+    // The reserved drag handle, rebuilt with the tabs because renderTabs
+    // empties the strip. It carries no text and no role: it exists to be the
+    // piece of strip a click can always land on.
+    var gap = document.createElement("div");
+    gap.className = "dw-drag-gap";
+    gap.setAttribute("aria-hidden", "true");
+    tabsEl.appendChild(gap);
+
     tabsEl.appendChild(newTabEl);
   }
 

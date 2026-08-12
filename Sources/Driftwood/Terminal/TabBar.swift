@@ -23,24 +23,18 @@ final class TabBar: NSView {
     var activeIndex = 0 { didSet { needsDisplay = true } }
     var theme = TerminalTheme.driftwoodNight { didSet { needsDisplay = true } }
 
-    private static let minimumTabWidth: CGFloat = 60
-    private static let maximumTabWidth: CGFloat = 180
     private static let closeButtonSize: CGFloat = 12
-    private static let newTabButtonWidth: CGFloat = 24
     private static let horizontalInset: CGFloat = 8
 
     override var isFlipped: Bool { false }
 
-    /// Tab widths share the strip evenly, capped so a single tab does not
-    /// stretch to the full window width and floored so eight tabs stay
-    /// clickable. Below the floor the strip simply runs off the right edge,
-    /// which is visible and recoverable; shrinking further would produce tabs
-    /// too small to aim at.
+    /// Tab widths share the strip evenly, minus the "+" and the reserved drag
+    /// handle. The arithmetic and the four constants behind it are in
+    /// `TerminalMetrics.tabWidth`, where `make check` can reach them — the
+    /// invariant they carry is that a click always lands somewhere that drags
+    /// the window, and this view cannot be built without a window.
     private var tabWidth: CGFloat {
-        guard !titles.isEmpty else { return 0 }
-        let available = bounds.width - Self.newTabButtonWidth
-        let even = available / CGFloat(titles.count)
-        return min(max(even, Self.minimumTabWidth), Self.maximumTabWidth)
+        TerminalMetrics.tabWidth(inStripOfWidth: bounds.width, tabCount: titles.count)
     }
 
     private func tabRect(_ index: Int) -> NSRect {
@@ -49,8 +43,8 @@ final class TabBar: NSView {
 
     private var newTabRect: NSRect {
         NSRect(
-            x: bounds.maxX - Self.newTabButtonWidth, y: 0,
-            width: Self.newTabButtonWidth, height: bounds.height
+            x: bounds.maxX - TerminalMetrics.newTabButtonWidth, y: 0,
+            width: TerminalMetrics.newTabButtonWidth, height: bounds.height
         )
     }
 
