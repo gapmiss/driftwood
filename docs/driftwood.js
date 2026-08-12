@@ -1084,6 +1084,7 @@
     // worth knowing it was handled rather than absent.
     paletteFilter.addEventListener("input", function () { renderPalette(true); });
     paletteFilter.addEventListener("keydown", onPaletteKeyDown);
+    document.addEventListener("keydown", onDocumentPaletteKeyDown, true);
 
     stage.appendChild(paletteEl);
     renderPalette(true);
@@ -1123,8 +1124,26 @@
     }
   }
 
+  // Escape dismisses the palette from wherever the keyboard happens to be, not
+  // only from the filter field. The app's palette holds the keyboard the whole
+  // time it is open; this one does not — dragging the panel, or a click on the
+  // page behind it, moves focus out of the filter, and with the handler on the
+  // field alone Escape then did nothing. The palette also covers the chip row
+  // it was opened from, so at that point there was no way left to dismiss it
+  // short of reloading. Capture phase, so it runs before the field's own
+  // handler and before anything else on the page claims the key.
+  function onDocumentPaletteKeyDown(e) {
+    if (e.key !== "Escape") return;
+    // Escape inside the settings menu closes that menu, not the palette:
+    // `onMenuKeyDown` owns it, and a submenu wants only the submenu closed.
+    if (menuEl && menuEl.contains(e.target)) return;
+    e.preventDefault();
+    closePalette(true);
+  }
+
   function closePalette(restoreFocus) {
     if (!paletteEl) return;
+    document.removeEventListener("keydown", onDocumentPaletteKeyDown, true);
     paletteEl.remove();
     paletteEl = null;
     paletteFilter = null;
@@ -1238,11 +1257,8 @@
       if (paletteMatches[paletteSelection]) firePalette(paletteMatches[paletteSelection]);
       return;
     }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      closePalette(true);
-      return;
-    }
+    // Escape is not handled here: `onDocumentPaletteKeyDown` takes it in the
+    // capture phase, so one path closes the palette from every focus.
     // The palette holds focus while it is open: the filter field is its only
     // focusable element, so trapping is one line rather than a ring of
     // sentinels.
