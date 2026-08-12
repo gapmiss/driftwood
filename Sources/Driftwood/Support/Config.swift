@@ -60,7 +60,33 @@ struct Config: Codable, Equatable {
     /// Arguments passed to the shell. `-l` makes it a login shell, which is
     /// what sources the profile a normal terminal tab would.
     var shellArguments = ["-l"]
+    /// The panel's alpha while it is dimmed, under When Unfocused ▸ Dim. Unused
+    /// under the other two settings.
+    ///
+    /// Applied as `panel.alphaValue`, which fades the window whole — text
+    /// included. That is the point: a panel whose background dimmed while its
+    /// text stayed at full brightness would read as a rendering fault rather
+    /// than as a state. It multiplies with the theme's own translucency and
+    /// with Opacity ▸, so at a low opacity a dimmed panel is very faint indeed.
+    ///
+    /// **The floor is far below Opacity ▸'s, and that is safe for a reason
+    /// Opacity ▸ cannot rely on.** A panel faded to nothing by Opacity ▸ stays
+    /// faded, and the only control that would restore it is a menu on the
+    /// window you can no longer see. Dimming only applies while the panel is
+    /// unfocused, and `AppDelegate.showPanel` sets the alpha back to 1 on every
+    /// summon, so ⌃⌥T is always a way back.
+    ///
+    /// It is not clamped to zero, though: `alphaValue` does not affect hit
+    /// testing, so a fully invisible panel still swallows every click inside
+    /// its frame — you would click at your editor and type into a terminal you
+    /// cannot see. `dimOpacityRange` keeps a little of it on screen.
+    var dimOpacity = 0.8
     var debug = false
+
+    /// The accepted range for `dimOpacity`. A value outside it is clamped on
+    /// read rather than rejected, so a hand-edited 0 or 5 lands somewhere
+    /// usable instead of costing the setting.
+    static let dimOpacityRange = 0.05...1.0
 
     static let defaultFontNames = [
         "MesloLGS NF",
@@ -73,7 +99,7 @@ struct Config: Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case fontNames, terminalPalette, terminalThemes, quickCommands
-        case hotkeys, shell, shellArguments, debug
+        case hotkeys, shell, shellArguments, dimOpacity, debug
     }
 
     init() {}
@@ -96,6 +122,8 @@ struct Config: Codable, Equatable {
         let rawShell = try c.decodeIfPresent(String.self, forKey: .shell) ?? "/bin/zsh"
         shell = rawShell.isEmpty ? "/bin/zsh" : rawShell
         shellArguments = try c.decodeIfPresent([String].self, forKey: .shellArguments) ?? ["-l"]
+        let rawDim = try c.decodeIfPresent(Double.self, forKey: .dimOpacity) ?? 0.8
+        dimOpacity = rawDim.clamped(to: Self.dimOpacityRange)
         debug = try c.decodeIfPresent(Bool.self, forKey: .debug) ?? false
     }
 
@@ -108,6 +136,10 @@ struct Config: Codable, Equatable {
         try c.encode(hotkeys, forKey: .hotkeys)
         try c.encode(shell, forKey: .shell)
         try c.encode(shellArguments, forKey: .shellArguments)
+        // Always written, unlike `debug`: the file `createIfMissing` leaves on
+        // disk is the only documentation of this setting a user is guaranteed
+        // to find, and a key absent by default is a key nobody knows to add.
+        try c.encode(dimOpacity, forKey: .dimOpacity)
         if debug { try c.encode(true, forKey: .debug) }
     }
 

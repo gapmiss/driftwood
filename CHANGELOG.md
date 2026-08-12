@@ -4,6 +4,11 @@ All notable changes to Driftwood are recorded here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- **When Unfocused ▸** in the right-click menu decides what the panel does once it is no longer the window you are typing in. **Stay Visible** is the default and is 0.2.0's behavior. **Dim** fades the panel, which is otherwise impossible to see: the panel is borderless, so a focused one and an unfocused one are pixel-identical, and ⌃⌥T behaves differently in each. **Hide** puts the panel away, so clicking back into your editor dismisses it without a keypress — nothing is lost, because hiding is not closing and every tab keeps its shell, its scrollback and its half-typed command line. The cost of Hide is that you can no longer leave a running command on screen while you work in another app, which is why both ship and the choice is one click. Stored in `state.json` as `onFocusLoss`.
+- `dimOpacity` in `config.json` sets how far Dim fades the panel. 0.8 by default; lower is dimmer, down to a floor of 0.05. The floor is not zero because fading a window does not stop it taking clicks, and an invisible panel would still swallow every click inside its frame.
+
 ### Fixed
 
 - The tab strip always keeps somewhere to grab. The strip is the panel's drag handle, and the tabs used to divide all of it except the "+" — at the default panel width three tabs came to 178pt each, just under the 180pt cap, so they filled the strip exactly and left nothing to drag. Opening a third tab silently took away the only way to move the panel that is visible on screen, leaving ⌘-drag as the only one left. 44pt beside the "+" is now reserved and the tabs share what is left, which makes each of three tabs 164pt instead of 178pt. Past eight tabs they still overflow off the right edge, as before.

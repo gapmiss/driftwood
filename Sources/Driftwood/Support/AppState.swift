@@ -23,6 +23,9 @@ struct AppState: Codable, Equatable {
     /// than replacing it — the theme decides how translucent it wants to be,
     /// this scales that decision.
     var opacity = 1.0
+    /// What the panel does when it stops being the window you are typing in,
+    /// set from When Unfocused ▸. See `FocusLossBehavior`.
+    var onFocusLoss = FocusLossBehavior.nothing
 
     /// `alwaysOnTop` and `showInFullScreen` were keys here through 0.1.0 and are
     /// gone in 0.2.0, along with the two menu rows that wrote them. A
@@ -31,7 +34,7 @@ struct AppState: Codable, Equatable {
     /// error. The account of why the settings went is on `TerminalPanel.init`,
     /// beside the level and collection behavior they used to move.
     private enum CodingKeys: String, CodingKey {
-        case frame, theme, fontSize, opacity
+        case frame, theme, fontSize, opacity, onFocusLoss
     }
 
     /// The font sizes offered by Font Size ▸, and the only values `fontSize`
@@ -105,6 +108,13 @@ struct AppState: Codable, Equatable {
         fontSize = Self.nearestFontSize(CGFloat(rawSize))
         let rawOpacity = try c.decodeIfPresent(Double.self, forKey: .opacity) ?? 1.0
         opacity = rawOpacity.clamped(to: Self.opacityRange)
+        // Decoded as a string and mapped by hand rather than through
+        // `Codable`'s synthesised `RawRepresentable` conformance, which
+        // *throws* on any value outside the enum. By the no-migrations rule a
+        // hand-edited or stale value has to cost the setting, not the file.
+        onFocusLoss = FocusLossBehavior(
+            try c.decodeIfPresent(String.self, forKey: .onFocusLoss)
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -113,6 +123,7 @@ struct AppState: Codable, Equatable {
         try c.encode(theme, forKey: .theme)
         try c.encode(Double(fontSize), forKey: .fontSize)
         try c.encode(opacity, forKey: .opacity)
+        try c.encode(onFocusLoss.rawValue, forKey: .onFocusLoss)
     }
 
     /// `{x, y, width, height}` rather than `CGRect`'s own `Codable` shape,
@@ -143,6 +154,12 @@ struct AppState: Codable, Equatable {
 
         var rect: CGRect { CGRect(x: x, y: y, width: width, height: height) }
     }
+
+    /// The order When Unfocused ▸ lists them in, and the whole of the setting.
+    /// Discrete menu items for the reason `opacityPresets` gives: a menu is the
+    /// entire settings surface here, and only ordinary items are reachable by
+    /// keyboard.
+    static let focusLossChoices: [FocusLossBehavior] = [.nothing, .dim, .hide]
 
     static var fileURL: URL {
         Config.fileURL.deletingLastPathComponent()
@@ -182,5 +199,56 @@ struct AppState: Codable, Equatable {
         } catch {
             NSLog("State save failed: %@", error.localizedDescription)
         }
+    }
+}
+
+/// What the panel does when it stops being the window keystrokes go to.
+///
+/// The three values are one mechanism with a different last line, and shipping
+/// all three is the point: `dim` and `hide` answer the same complaint from
+/// opposite directions, and which one is right depends on what you are doing at
+/// the time. The same person wants `hide` while using the panel as a launcher
+/// and `dim` while watching a build run in it, which is why this lives here and
+/// in the right-click menu rather than in `config.json` — switching is a
+/// workflow choice, not a one-time install decision.
+///
+/// - `nothing` — the panel stays exactly as it is. The default, because it is
+///   0.2.0's behavior, and an upgrade that changes how the app behaves without
+///   being asked is worse than one that changes nothing.
+/// - `dim` — the panel fades to `Config.dimOpacity`. **The panel is
+///   borderless: no title bar, no border, no highlight, so a focused panel and
+///   an unfocused one are otherwise pixel-identical.** That is the gap this
+///   fills. ⌃⌥T behaves differently in those two states (see
+///   `AppDelegate.togglePanel`), and until now nothing on screen said which one
+///   you were in.
+/// - `hide` — the panel is ordered out, so clicking back into your editor puts
+///   it away without a keypress. **Hiding is not closing:** `AppDelegate.hidePanel`
+///   only calls `orderOut`, so every tab keeps its shell, its scrollback and
+///   its half-typed command line. The cost is that you can no longer watch a
+///   running command in the panel while you work in another app, which is a
+///   real use of an always-on-top window — the trade `dim` refuses to make.
+enum FocusLossBehavior: String, Codable, Equatable {
+    case nothing
+    case dim
+    case hide
+
+    /// What When Unfocused ▸ calls this value.
+    var menuTitle: String {
+        switch self {
+        case .nothing: return "Stay Visible"
+        case .dim: return "Dim"
+        case .hide: return "Hide"
+        }
+    }
+
+    /// Maps a raw string, including nil and anything unrecognised, onto a
+    /// value. The tolerance lives here so the decoder and `make check`
+    /// exercise the same function.
+    init(_ raw: String?) {
+        guard let raw else {
+            self = .nothing
+            return
+        }
+        self = FocusLossBehavior(rawValue: raw.lowercased()) ?? .nothing
     }
 }

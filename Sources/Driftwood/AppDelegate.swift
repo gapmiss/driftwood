@@ -37,6 +37,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var font: NSFont = .monospacedSystemFont(ofSize: 12, weight: .regular)
     private var frameSaveWork: DispatchWorkItem?
+    private var focusLossWork: DispatchWorkItem?
+    /// True for as long as the settings menu is tracking. See
+    /// `showSettingsMenu` for why the focus-loss handler cannot work this out
+    /// for itself.
+    private var menuIsTracking = false
 
     private let cornerRadius: CGFloat = 10
     /// How far the blur hangs past the root view on every edge, so the
@@ -48,6 +53,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// into one write while still being short enough that quitting right after
     /// letting go saves the frame you let go at.
     private let frameSaveDelay: TimeInterval = 0.25
+
+    /// How long the panel has to be without the keyboard before
+    /// `state.onFocusLoss` acts on it.
+    ///
+    /// **Losing key status is not the same as being finished with, and the
+    /// difference is measured in milliseconds.** Opening the command palette
+    /// takes key away from the panel; so does anything else that borrows focus
+    /// for a moment. Worse, the two notifications arrive in the wrong order for
+    /// a naive handler: the panel's `didResignKey` fires *before* the palette's
+    /// `didBecomeKey`, so at the instant the panel resigns, nothing in the app
+    /// is key and `panelHasKeyboard` is false. Acting immediately would hide the
+    /// panel out from under the palette it just opened.
+    ///
+    /// So the decision is deferred and re-checked. Anything that takes the
+    /// keyboard back inside this window cancels it. 200ms is long enough to
+    /// cover the handoff and short enough that a deliberate click into another
+    /// app reads as immediate.
+    private let focusLossDelay: TimeInterval = 0.2
+
 
     // MARK: - Launch
 
@@ -80,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         openSession(directory: NSHomeDirectory())
         applyTheme()
         layoutContent()
+        startFocusTracking()
 
         // `showPanel` rather than `orderFrontRegardless`, so first launch and
         // every later summon take the same path. Measured: `orderFrontRegardless`
@@ -407,6 +432,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// that it reads as a bug if nobody wrote down that it was tested.
     private func showPanel() {
         if sessions.isEmpty { openSession(directory: NSHomeDirectory()) }
+        // A panel hidden while dimmed would otherwise come back dimmed and stay
+        // that way until the next focus change.
+        focusLossWork?.cancel()
+        focusLossWork = nil
+        panel.alphaValue = 1
         panel.makeKeyAndOrderFront(nil)
         focusActiveSession()
         DebugLog.log(
@@ -428,6 +458,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// terminal underneath, leaving the palette on screen and inert.
     private var panelHasKeyboard: Bool {
         panel.isKeyWindow || (palette?.isKeyWindow ?? false)
+    }
+
+    /// Is the panel being used right now, whether or not it holds the keyboard?
+    ///
+    /// **This is a wider question than `panelHasKeyboard`, and asking the
+    /// narrow one instead was a bug.** `CommandPalette` is built to survive
+    /// losing key status — its `init` says so, so that a half-typed filter is
+    /// not thrown away by a stray click into another app. "The palette is open"
+    /// and "the palette has the keyboard" are therefore different conditions.
+    /// Under `onFocusLoss: "hide"` the narrow question hid the panel while the
+    /// palette sat visible above it, and because `hidePanel` dismisses the
+    /// palette, both disappeared and the palette's contents were gone for good.
+    ///
+    /// The known cost: a palette left open pins the panel on screen, because
+    /// nothing here can tell a palette you are reading from one you walked away
+    /// from. Driftwood is never the frontmost application, so there is no
+    /// frontmost app to compare against. Escape or running a command closes the
+    /// palette and releases the pin.
+    private var panelIsInUse: Bool {
+        panelHasKeyboard || (palette?.isVisible ?? false) || menuIsTracking
+    }
+
+    /// Watch every window in the app for a change of key status, so
+    /// `state.onFocusLoss` can act when the panel stops being the thing you
+    /// are typing in.
+    ///
+    /// **Registered with `object: nil`, meaning every window, not just the
+    /// panel.** The palette is created and destroyed on demand, so an observer
+    /// bound to a specific window could not cover it, and the palette is
+    /// exactly the window whose key status has to be counted — see
+    /// `panelHasKeyboard`. Each notification re-asks the same question rather
+    /// than trusting which window sent it.
+    private func startFocusTracking() {
+        let center = NotificationCenter.default
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+            center.addObserver(
+                self, selector: #selector(keyWindowChanged),
+                name: name, object: nil
+            )
+        }
+    }
+
+    @objc private func keyWindowChanged() {
+        // Any change supersedes a pending decision, including one that was
+        // about to hide the panel.
+        focusLossWork?.cancel()
+        focusLossWork = nil
+
+        if panelIsInUse {
+            panel.alphaValue = 1
+            return
+        }
+        guard state.onFocusLoss != .nothing, panel.isVisible else { return }
+
+        // Deferred and re-checked — see `focusLossDelay` for why acting here
+        // would hide the panel out from under its own palette.
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !panelIsInUse, panel.isVisible else { return }
+            DebugLog.log(
+                "focus lost: \(state.onFocusLoss.rawValue) (dimOpacity=\(config.dimOpacity)) "
+                + "(panelKey=\(panel.isKeyWindow) paletteKey=\(palette?.isKeyWindow ?? false) "
+                + "paletteVisible=\(palette?.isVisible ?? false))"
+            )
+            switch state.onFocusLoss {
+            case .nothing:
+                break
+            case .dim:
+                panel.alphaValue = CGFloat(config.dimOpacity)
+            case .hide:
+                // Re-entrant: `orderOut` resigns key and calls straight back
+                // into this handler. The `panel.isVisible` guard above is what
+                // ends the recursion.
+                hidePanel()
+            }
+        }
+        focusLossWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + focusLossDelay, execute: work)
     }
 
     /// ⌃⌥T. Three states, not two.
@@ -610,6 +717,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         layoutContent()
     }
 
+    /// When Unfocused ▸. Three ordinary menu items, so arrow keys reach them
+    /// and the checkmark is the current value — see `AppState.opacityPresets`
+    /// for why nothing in this menu is a slider.
+    private func focusLossMenu() -> NSMenu {
+        let submenu = NSMenu()
+        for choice in AppState.focusLossChoices {
+            let entry = item(choice.menuTitle, #selector(selectFocusLoss(_:)))
+            entry.representedObject = choice.rawValue
+            entry.state = choice == state.onFocusLoss ? .on : .off
+            submenu.addItem(entry)
+        }
+        return submenu
+    }
+
+    @objc private func selectFocusLoss(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String else { return }
+        state.onFocusLoss = FocusLossBehavior(raw)
+        state.save()
+        // Picking "Stay Visible" while the panel is dimmed has to undo the dim,
+        // or the setting reads as having done nothing until the next focus
+        // change. `showSettingsMenu` restores the keyboard on the way out, so
+        // the panel is in use here by definition.
+        panel.alphaValue = 1
+    }
+
     @objc private func selectOpacity(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? Double else { return }
         state.opacity = value.clamped(to: AppState.opacityRange)
@@ -773,8 +905,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // system for the duration. `HotkeyCenter.setEnabled` says what that
         // looks like when it is skipped.
         hotkeys.setEnabled(false, config: config.hotkeys, quickCommands: quickCommands)
+        // **The settings menu is the one case the focus-loss handler cannot
+        // work out for itself.** A tracking `NSMenu` runs its own event loop,
+        // and whether that costs the panel its key status is AppKit's business,
+        // not something observable from here — under `onFocusLoss: "hide"` a
+        // panel that resigned key here would be ordered out from under the menu
+        // popped from it, leaving the settings surface floating over nothing.
+        // `popUpContextMenu` blocks until tracking ends, so a flag around it is
+        // exact where the 200ms delay would only be likely.
+        menuIsTracking = true
+        focusLossWork?.cancel()
+        focusLossWork = nil
         NSMenu.popUpContextMenu(menu, with: event, for: chromeView)
+        menuIsTracking = false
         hotkeys.setEnabled(true, config: config.hotkeys, quickCommands: quickCommands)
+        // **Take the keyboard back rather than re-asking who has it.** Asking
+        // was a bug: at the instant tracking ends the panel has not necessarily
+        // regained key status, so under `onFocusLoss: "hide"` the answer was
+        // "nobody", and picking a theme out of this menu put the panel away
+        // 200ms later. Someone who just used the panel's own settings menu was
+        // using the panel, so the keyboard goes back where it was.
+        if panel.isVisible { showPanel() }
     }
 
     private func buildSettingsMenu() -> NSMenu {
@@ -783,6 +934,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(submenu("Theme", themeMenu()))
         menu.addItem(submenu("Font Size", fontSizeMenu()))
         menu.addItem(submenu("Opacity", opacityMenu()))
+        menu.addItem(submenu("When Unfocused", focusLossMenu()))
 
         menu.addItem(.separator())
         menu.addItem(item("New Tab", #selector(newTab), hotkey: config.hotkeys.newTab))

@@ -568,6 +568,15 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
             <td>Saved commands for the palette, the menu and their own hotkeys.</td>
           </tr>
           <tr>
+            <td><code>dimOpacity</code></td><td>number</td><td><code>0.8</code></td>
+            <td>How faded the panel gets when When Unfocused &#x25B8; is set to Dim; lower is
+                dimmer. It multiplies with the theme's own translucency and with Opacity &#x25B8;.
+                Clamped to 0.05&ndash;1.0 rather than rejected. The floor is not zero because fading
+                a window does not stop it taking clicks &mdash; an invisible panel would still
+                swallow every click inside its frame. Every &#x2303;&#x2325;T restores the panel to
+                full, so a low value is safe in a way the Opacity floor is not.</td>
+          </tr>
+          <tr>
             <td><code>debug</code></td><td>boolean</td><td><code>false</code></td>
             <td>Writes a log to <code>~/Library/Logs/Driftwood/driftwood.log</code>: the resolved
                 font, hotkey registrations and failures, rejected themes and quick commands, and the
@@ -737,6 +746,14 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
           <tr><td>Font Size &#x25B8;</td><td>10, 11, 12, 13, 14, 16 point.</td></tr>
           <tr><td>Opacity &#x25B8;</td>
               <td>100%, 90%, 80%, 70%, 50%, multiplied into the theme's own background alpha.</td></tr>
+          <tr><td>When Unfocused &#x25B8;</td>
+              <td>What the panel does once it is no longer the window you are typing in. Stay Visible
+                  leaves it alone. Dim fades it, which is otherwise the only way to tell — the panel
+                  is borderless, so a focused one and an unfocused one look identical. Hide puts it
+                  away, so clicking back into your editor dismisses it without a keypress; nothing is
+                  lost, because every tab keeps its shell, its scrollback and its half-typed command
+                  line. Hide is the one to avoid if you like leaving a running command on screen while
+                  you work elsewhere.</td></tr>
           <tr><td>New Tab</td><td>Opens a tab. Shows the <code>newTab</code> hotkey next to it.</td></tr>
           <tr><td>Quick Commands &#x25B8;</td>
               <td>Your saved commands, each with its hotkey, then a Show Palette&hellip; row. With none

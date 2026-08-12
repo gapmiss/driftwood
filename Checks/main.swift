@@ -664,6 +664,18 @@ struct Check {
               "the shell is a login shell by default, so profiles are sourced")
         check(decode(#"{}"#)?.debug == false, "debug is off by default")
 
+        // dimOpacity. Out-of-range values are clamped rather than rejected, so
+        // a hand-edited 0 or 5 lands somewhere usable.
+        check(decode(#"{}"#)?.dimOpacity == 0.8, "dimOpacity defaults to 0.8")
+        check(decode(#"{"dimOpacity":0.3}"#)?.dimOpacity == 0.3, "a dimOpacity in range is kept")
+        check(decode(#"{"dimOpacity":0}"#)?.dimOpacity == Config.dimOpacityRange.lowerBound,
+              "dimOpacity 0 is clamped up, since alphaValue does not stop the panel taking clicks")
+        check(decode(#"{"dimOpacity":5}"#)?.dimOpacity == 1.0, "dimOpacity above 1 is clamped down")
+        // The floor is deliberately far below Opacity ▸'s 0.2: dimming only
+        // applies while unfocused, and every summon resets the alpha to 1.
+        check(Config.dimOpacityRange.lowerBound < AppState.opacityRange.lowerBound,
+              "the dim floor sits below the Opacity floor, because ⌃⌥T always undoes a dim")
+
         check(decode(#"{}"#)?.hotkeys.toggle == "control+option+t",
               "a config with no hotkeys object uses the defaults")
         check(decode(#"{"hotkeys":{"toggle":"cmd+shift+t"}}"#)?.hotkeys.toggle == "cmd+shift+t",
@@ -684,6 +696,10 @@ struct Check {
         let reencoded = String(data: try! JSONEncoder().encode(stale!), encoding: .utf8)!
         check(!reencoded.contains("dockPosition"), "an unknown key is not written back out")
         check(!reencoded.contains("debug"), "debug is omitted from the file when off")
+        // onFocusLoss moved to AppState when it gained a menu row, and a
+        // config.json that still carries it must be inert rather than fatal.
+        check(decode(#"{"onFocusLoss":"hide","shell":"/bin/bash"}"#)?.shell == "/bin/bash",
+              "onFocusLoss left in config.json is inert now that it lives in AppState")
 
         // Corrupt files are moved aside, never overwritten, and an earlier
         // rescue is never clobbered by a later one.
@@ -709,6 +725,26 @@ struct Check {
         func decode(_ json: String) -> AppState? {
             try? JSONDecoder().decode(AppState.self, from: Data(json.utf8))
         }
+        // onFocusLoss. The default has to stay "nothing": it is 0.2.0's
+        // behavior, and an upgrade that changes how the panel behaves without
+        // being asked is worse than one that changes nothing.
+        check(decode(#"{}"#)?.onFocusLoss == .nothing,
+              "onFocusLoss defaults to nothing, leaving 0.2.0's behavior alone")
+        check(decode(#"{"onFocusLoss":"hide"}"#)?.onFocusLoss == .hide,
+              "onFocusLoss: hide decodes")
+        check(decode(#"{"onFocusLoss":"dim"}"#)?.onFocusLoss == .dim,
+              "onFocusLoss: dim decodes")
+        check(decode(#"{"onFocusLoss":"Hide"}"#)?.onFocusLoss == .hide,
+              "onFocusLoss is case-insensitive")
+        // The whole reason this is decoded as a string and mapped by hand:
+        // `Codable`'s synthesised conformance would throw here, and by the
+        // no-migrations rule a typo costs the setting, not the file.
+        check(decode(#"{"onFocusLoss":"hyde","theme":"nord"}"#)?.onFocusLoss == .nothing,
+              "an unrecognised onFocusLoss falls back to nothing")
+        check(decode(#"{"onFocusLoss":"hyde","theme":"nord"}"#)?.theme == "nord",
+              "an unrecognised onFocusLoss does not stop the rest of the file decoding")
+        check(FocusLossBehavior(nil) == .nothing, "a missing onFocusLoss is nothing")
+
         check(decode(#"{}"#)?.frame == nil, "state with no frame has none to restore")
         check(decode(#"{"frame":{"x":10,"y":20,"width":300,"height":200}}"#)?.frame
               == CGRect(x: 10, y: 20, width: 300, height: 200),

@@ -45,7 +45,7 @@ make run
 | ⌘1…⌘9 | Jump to a tab |
 | ⌘+ / ⌘− | Font size up / down |
 
-Drag the panel by its tab strip, or ⌘-drag anywhere in it. Resize from any edge or corner. Right-click for themes, opacity, always-on-top, launch at login and the rest.
+Drag the panel by its tab strip, or ⌘-drag anywhere in it. Resize from any edge or corner. Right-click for themes, opacity, what the panel does when it loses focus, launch at login and the rest.
 
 The panel has no close button on purpose — hiding it is ⌃⌥T, and quitting is in the right-click menu.
 
@@ -74,6 +74,7 @@ Every key, with its type and default, is in the guide's [configuration reference
     "commands": "control+option+k",
     "quit": ""
   },
+  "dimOpacity": 0.8,
   "terminalPalette": { "ansi1": "#c64a5a" },
   "quickCommands": [
     { "id": "logs", "title": "Tail logs", "command": "tail -f /tmp/app.log", "hotkey": "control+option+1" }
@@ -87,6 +88,8 @@ Every key, with its type and default, is in the guide's [configuration reference
 **`fontNames`** — preferred fonts, best first; the first one installed wins. Nerd Font variants come first because prompt themes like Powerlevel10k draw their separators and icons from glyph ranges no stock macOS font carries. A name that is not installed is skipped silently, so a typo costs you the font and says nothing — set `"debug": true` to log which one actually resolved.
 
 **`hotkeys`** — `"modifier+modifier+key"`. At least one of control, option or command is required; shift alone does not count, because a registered hotkey consumes that keystroke in *every* application and `shift+a` is just A. Set a binding to `""` or `"none"` to turn it off. `quit` ships off: it is the one binding whose misfire costs you every running shell.
+
+**`dimOpacity`** — how faded the panel gets when the right-click menu's When Unfocused ▸ is set to Dim. 0.8 by default; lower is dimmer. It multiplies with the theme's own translucency and with Opacity ▸, so at a low opacity a dimmed panel is very faint. Values are clamped to 0.05–1.0 rather than rejected. The floor is not zero because fading a window does not stop it taking clicks — an invisible panel would still swallow every click inside its frame, and you would type into a terminal you cannot see. Nothing else here is at risk: dimming only applies while the panel is unfocused, and every ⌃⌥T restores it to full.
 
 **`terminalPalette`** — per-role color overrides on top of whichever theme is selected. Roles are `ansi0`…`ansi15`, `background`, `foreground`, `cursor`, `selection` and `tabBarText`; values are `#RRGGBB` or `#RRGGBBAA`. A line that does not parse costs that one color and nothing else.
 
