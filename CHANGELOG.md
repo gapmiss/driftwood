@@ -6,6 +6,7 @@ All notable changes to Driftwood are recorded here. Format follows [Keep a Chang
 
 ### Added
 
+- Opening Driftwood while it is already running summons the panel, tabs and scrollback untouched. It matters when the panel is hidden — after a second ⌃⌥T, or under When Unfocused ▸ Hide — where opening the app from Finder, Spotlight or a launcher used to do nothing visible at all: Driftwood came to the front with no window on screen, so an app that was running looked like one that had failed to launch. With the panel already on screen, nothing changes.
 - `scrollbackLines` in `config.json` sets how many lines of output each tab keeps above the visible screen. 500 by default, which is what every release before this one used, so leaving it alone changes nothing. Raise it to keep more history in a tab; set it to 0 to keep none at all, so anything that scrolls off the top is gone. There is no unlimited setting — the buffer is allocated at its full length when a tab opens, and its cost is lines × columns per tab — so values are capped at 100,000 rather than rejected. Full-screen programs like `less` and `vim` draw into a separate buffer that has never had scrollback, and this does not change that.
 
 ## [0.3.0] — 2026-08-12

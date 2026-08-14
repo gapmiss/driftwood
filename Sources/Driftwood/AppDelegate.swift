@@ -117,6 +117,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         startHotkeys()
     }
 
+    /// Opening the app while it is already running summons the panel.
+    ///
+    /// macOS sends this when the user opens an already-running app — from
+    /// Finder, Spotlight, a launcher, or `open`. There is no Dock icon to
+    /// click, so that is the only way it arrives here.
+    ///
+    /// **It matters only while the panel is hidden, and there it is the one
+    /// recovery path a user has.** With the panel on screen, AppKit's own
+    /// default response — activating the process — already brings it forward
+    /// and makes it key, because it is visible and `canBecomeKey` is true; this
+    /// method then only re-asserts that. Hidden, `orderOut` has left no window
+    /// to activate, so without this Driftwood becomes the frontmost
+    /// application with nothing on screen: no panel, no error, no window, and
+    /// an app that is running looks like one that failed to launch. Hidden is
+    /// not an edge case — it is where the panel sits after a second ⌃⌥T, and
+    /// where When Unfocused ▸ Hide leaves it on every click into another app.
+    ///
+    /// Reopening costs no state. `showPanel` orders the panel in and takes the
+    /// keyboard; it never touches a session, and hiding was `orderOut` rather
+    /// than a close, so every tab keeps its shell, its scrollback and its
+    /// half-typed command line.
+    ///
+    /// `flag` is ignored deliberately. It reports whether AppKit thinks there
+    /// are visible windows, and the answer does not change what to do: the
+    /// panel should end up visible and key either way.
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication, hasVisibleWindows flag: Bool
+    ) -> Bool {
+        DebugLog.log("reopen: hasVisibleWindows=\(flag)")
+        showPanel()
+        return true
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // The debounce means the last drag may still be pending. Cancel it and
         // write synchronously, or quitting immediately after a move loses it.
