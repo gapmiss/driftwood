@@ -1,5 +1,5 @@
 APP     := Driftwood
-VERSION := 0.3.0
+VERSION := 0.4.0
 CONFIG  ?= debug
 BUILD   := .build
 BUNDLE  := $(BUILD)/$(APP).app

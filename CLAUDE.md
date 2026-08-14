@@ -1,6 +1,6 @@
 # Driftwood — a floating terminal panel for macOS
 
-A borderless, blurred, always-on-top terminal panel with tabs, themes and global hotkeys. Press ⌃⌥T over whatever you are working in, type a command, press it again. No Dock icon, no menu bar item, no Accessibility permission, no network calls. Current release is `VERSION` in the Makefile (0.3.0), shipped as a DMG.
+A borderless, blurred, always-on-top terminal panel with tabs, themes and global hotkeys. Press ⌃⌥T over whatever you are working in, type a command, press it again. No Dock icon, no menu bar item, no Accessibility permission, no network calls. Current release is `VERSION` in the Makefile (0.4.0), shipped as a DMG.
 
 Driftwood keeps Starboard's terminal — a real PTY-backed login shell in a nonactivating `NSPanel` — and drops Starboard's Dock tracking, which is what removes the Accessibility grant, the certificate-pinning install script and the 1-second polling timer along with it. Conventions throughout follow Chestnut: SPM + Makefile, JSON settings in Application Support, a check harness in place of XCTest, rationale in doc comments.
 

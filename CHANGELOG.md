@@ -2,13 +2,17 @@
 
 All notable changes to Driftwood are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] — 2026-08-13
 
 ### Added
 
 - A second copy of Driftwood no longer runs alongside the first. macOS stops a second launch of the *same* bundle, but not `/Applications/Driftwood.app` and a copy built somewhere else, which share an identifier and used to run as two processes: both wrote the panel frame, theme and font size with the last one to quit winning, and both claimed ⌃⌥T, with only one of them receiving it and nothing saying which. The copy already running wins and is never touched, since quitting it would kill every shell in every tab. The new one asks it to show its panel and exits.
 - Opening Driftwood while it is already running summons the panel, tabs and scrollback untouched. It matters when the panel is hidden — after a second ⌃⌥T, or under When Unfocused ▸ Hide — where opening the app from Finder, Spotlight or a launcher used to do nothing visible at all: Driftwood came to the front with no window on screen, so an app that was running looked like one that had failed to launch. With the panel already on screen, nothing changes.
 - `scrollbackLines` in `config.json` sets how many lines of output each tab keeps above the visible screen. 500 by default, which is what every release before this one used, so leaving it alone changes nothing. Raise it to keep more history in a tab; set it to 0 to keep none at all, so anything that scrolls off the top is gone. There is no unlimited setting — the buffer is allocated at its full length when a tab opens, and its cost is lines × columns per tab — so values are capped at 100,000 rather than rejected. Full-screen programs like `less` and `vim` draw into a separate buffer that has never had scrollback, and this does not change that.
+
+### Fixed
+
+- The debug log dropped lines when two copies of Driftwood were running. Each process opened the file with its own write position, fixed at the moment it opened, so the second one wrote over lines the first had already written instead of after them. Only `"debug": true` is affected.
 
 ## [0.3.0] — 2026-08-12
 
@@ -93,6 +97,7 @@ Both found by the first manual smoke test, before release.
 - Built in Swift 5 language mode. SwiftTerm 1.15 predates `Sendable`, so conforming a `@MainActor` type to `LocalProcessTerminalViewDelegate` is an actor-isolation error under Swift 6 checking; `@preconcurrency import` does not cover it. See `Package.swift`.
 - Pasted text renders in black until the next redraw. The bug is in SwiftTerm's own paste path.
 
+[0.4.0]: https://github.com/gapmiss/driftwood/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/gapmiss/driftwood/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/gapmiss/driftwood/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/gapmiss/driftwood/releases/tag/v0.1.0
