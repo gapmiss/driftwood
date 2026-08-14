@@ -11,4 +11,15 @@ enum AppInfo {
     /// Opened by Check for Updates… — the app makes no network call of its
     /// own, so comparing versions is the browser's job and the user's.
     static let releasesURL = URL(string: "https://github.com/gapmiss/driftwood/releases")!
+
+    /// Posted by a second copy of Driftwood as it exits, asking the copy that
+    /// is already running to summon its panel. See
+    /// `AppDelegate.handOffToRunningInstance`.
+    ///
+    /// This travels through `DistributedNotificationCenter`, which is
+    /// system-wide: any process on this machine can post it, and the only thing
+    /// it can cause is the panel appearing and taking the keyboard. It carries
+    /// no payload and reaches no code that runs a command, opens a tab or
+    /// changes a setting.
+    static let showPanelNotification = Notification.Name("com.gapmiss.driftwood.showPanel")
 }

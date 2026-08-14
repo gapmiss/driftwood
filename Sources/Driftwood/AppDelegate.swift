@@ -77,8 +77,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         config = Config.load()
-        config.createIfMissing()
         DebugLog.configure(enabled: config.debug)
+
+        // Before anything is built, registered or written: a second copy hands
+        // the summon to the first and exits.
+        if handOffToRunningInstance() { return }
+
+        config.createIfMissing()
         state = AppState.load()
 
         for failure in TerminalTheme.registerCustomThemes(config.terminalThemes ?? []) {
@@ -114,7 +119,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // keyboard — see the account on `showPanel`.
         showPanel()
 
+        // After the panel exists, since the handler summons it.
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(showPanelOnRequest),
+            name: AppInfo.showPanelNotification, object: nil
+        )
+
         startHotkeys()
+    }
+
+    /// True when this process is a duplicate that is on its way out, so
+    /// `applicationWillTerminate` leaves the running instance's files alone.
+    private var isHandingOff = false
+
+    /// If Driftwood is already running, ask that copy to show its panel and
+    /// quit this one. Returns true when the caller must stop launching.
+    ///
+    /// **Two copies at different paths both run, and macOS does not stop
+    /// them.** LaunchServices refuses to start a second process from the *same*
+    /// bundle — it sends a reopen event instead, which is what
+    /// `applicationShouldHandleReopen` answers. It has nothing to say about
+    /// `/Applications/Driftwood.app` and `.build/Driftwood.app`, which are
+    /// separate bundles that happen to share a `CFBundleIdentifier`, so `make
+    /// run` next to an installed copy gives you two.
+    ///
+    /// Two of them is not a cosmetic problem. Both write `state.json` — the
+    /// frame, theme, font size and opacity — with neither reading the other's
+    /// writes, so the last one to quit wins and the other's changes are gone.
+    /// Both register ⌃⌥T with Carbon, which reports no conflict and delivers
+    /// the keypress to one of them; nothing here decides which. The symptom is
+    /// "the hotkey stopped working", with no error anywhere.
+    ///
+    /// **The instance already running wins, and this one never touches it.**
+    /// Terminating the older copy would kill every shell in every tab, which is
+    /// the only outcome in this design that destroys work a user cannot get
+    /// back. So the new process posts the summon and exits: whatever you were
+    /// doing stays exactly where it was, and opening the app still puts the
+    /// panel in front, which is what someone double-clicking it wanted.
+    ///
+    /// The cost is developer-facing. With an installed copy running, `make run`
+    /// exits without a window and you are testing the old build. `debug: true`
+    /// logs both paths; `pkill -x Driftwood` first avoids it.
+    ///
+    /// A bare `swift build` binary has no bundle and therefore no identifier,
+    /// so this finds nothing and lets it launch — running one from the terminal
+    /// alongside a bundled copy is unchanged.
+    private func handOffToRunningInstance() -> Bool {
+        guard let id = Bundle.main.bundleIdentifier else { return false }
+        let mine = ProcessInfo.processInfo.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)
+            .filter { $0.processIdentifier != mine }
+        guard let other = others.first(where: { startedBeforeUs($0) }) else { return false }
+
+        isHandingOff = true
+        DebugLog.log(
+            "duplicate launch: pid \(mine) at \(Bundle.main.bundlePath) yielding to "
+            + "pid \(other.processIdentifier) at \(other.bundleURL?.path ?? "?")"
+        )
+        NSLog("Driftwood is already running (pid %d) — summoning that panel and exiting.",
+              other.processIdentifier)
+        DistributedNotificationCenter.default().postNotificationName(
+            AppInfo.showPanelNotification, object: nil, userInfo: nil, deliverImmediately: true
+        )
+        NSApp.terminate(nil)
+        return true
+    }
+
+    /// Which of two simultaneous launches yields.
+    ///
+    /// Launching two copies at once would otherwise have both find each other
+    /// and both exit, leaving no Driftwood at all — the one outcome worse than
+    /// two. Ordering by launch date settles it, and the process ID breaks a tie
+    /// when the dates match or `launchDate` is nil, so exactly one side yields.
+    private func startedBeforeUs(_ other: NSRunningApplication) -> Bool {
+        if let theirs = other.launchDate, let ours = NSRunningApplication.current.launchDate,
+           theirs != ours {
+            return theirs < ours
+        }
+        return other.processIdentifier < ProcessInfo.processInfo.processIdentifier
+    }
+
+    /// A second copy asked us to show the panel as it exited.
+    ///
+    /// `DistributedNotificationCenter` delivers on the main run loop, which is
+    /// what makes calling into this `@MainActor` type from an `@objc` selector
+    /// safe; the precondition is here so a change in that behavior fails loudly
+    /// rather than corrupting AppKit state off the main thread.
+    @objc private func showPanelOnRequest() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        DebugLog.log("show requested by a duplicate launch")
+        showPanel()
     }
 
     /// Opening the app while it is already running summons the panel.
@@ -151,12 +245,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // **A duplicate must not save.** `handOffToRunningInstance` quits
+        // before `AppState.load()` runs, so `state` here is still the default —
+        // saving it would overwrite the running instance's frame, theme, font
+        // size and opacity with factory values, and `state.json` is written
+        // atomically, so there is nothing left to recover from.
+        if isHandingOff { return }
         // The debounce means the last drag may still be pending. Cancel it and
         // write synchronously, or quitting immediately after a move loses it.
         frameSaveWork?.cancel()
         if let panel { state.frame = panel.frame }
         state.save()
         hotkeys.stop()
+        DistributedNotificationCenter.default().removeObserver(self)
     }
 
     // MARK: - Panel construction
