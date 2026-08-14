@@ -278,7 +278,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             frame: TerminalMetrics.contentFrame(
                 in: rootView.bounds, font: font, showingTabBar: sessions.count >= 1
             ),
-            shell: config.shell
+            shell: config.shell,
+            scrollbackLines: config.scrollbackLines
         )
         session.view.font = font
         session.onTitleChange = { [weak self] in self?.refreshTabBar() }

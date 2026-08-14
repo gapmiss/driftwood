@@ -2,6 +2,12 @@
 
 All notable changes to Driftwood are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `scrollbackLines` in `config.json` sets how many lines of output each tab keeps above the visible screen. 500 by default, which is what every release before this one used, so leaving it alone changes nothing. Raise it to keep more history in a tab; set it to 0 to keep none at all, so anything that scrolls off the top is gone. There is no unlimited setting — the buffer is allocated at its full length when a tab opens, and its cost is lines × columns per tab — so values are capped at 100,000 rather than rejected. Full-screen programs like `less` and `vim` draw into a separate buffer that has never had scrollback, and this does not change that.
+
 ## [0.3.0] — 2026-08-12
 
 ### Added

@@ -38,11 +38,19 @@ final class TerminalSession: NSObject, LocalProcessTerminalViewDelegate {
 
     private let shellName: String
 
-    init(frame: NSRect, shell: String) {
+    init(frame: NSRect, shell: String, scrollbackLines: Int) {
         view = LocalProcessTerminalView(frame: frame)
         shellName = (shell as NSString).lastPathComponent
         super.init()
         view.processDelegate = self
+        // Set after construction rather than passed in: SwiftTerm 1.15's
+        // `TerminalView` initializers take a frame and a font and no
+        // `TerminalOptions`, so 500 is already allocated by the time we get
+        // here. `changeScrollback` resizes the normal buffer in place — it
+        // trims from the top when shrinking, which is a no-op on a terminal
+        // that has printed nothing yet. It leaves the alternate buffer alone;
+        // that one never has scrollback.
+        view.getTerminal().changeScrollback(scrollbackLines)
         // The panel's blur and tint are what the user sees behind the text;
         // an opaque terminal background would cover both.
         view.nativeBackgroundColor = .clear

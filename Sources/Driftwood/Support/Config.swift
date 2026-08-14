@@ -85,7 +85,32 @@ struct Config: Codable, Equatable {
     /// its frame — you would click at your editor and type into a terminal you
     /// cannot see. `dimOpacityRange` keeps a little of it on screen.
     var dimOpacity = 0.8
+    /// How many lines of output each tab keeps above the visible screen.
+    ///
+    /// 500 is SwiftTerm's own default, so leaving this alone is exactly the
+    /// behavior every release before this one had. Applied per session at
+    /// construction (`TerminalSession.init`); nothing re-reads it, so an edit
+    /// reaches existing tabs only after a relaunch.
+    ///
+    /// **0 means no scrollback at all**, not "unlimited" — the buffer is the
+    /// visible rows and nothing more, so anything that scrolls off the top is
+    /// gone. There is no unlimited setting: the buffer is a fixed-length ring
+    /// allocated up front, and every line costs columns × a cell struct, per
+    /// tab. `scrollbackLinesRange` caps it at 100,000 so a hand-typed extra
+    /// zero costs memory instead of the launch.
+    ///
+    /// The alternate screen buffer — what full-screen programs like `less`,
+    /// `vim` and `htop` draw into — has no scrollback and this does not change
+    /// that. It is SwiftTerm's behavior and matches every other terminal:
+    /// scrolling inside those programs is theirs to handle, not the
+    /// terminal's.
+    var scrollbackLines = 500
     var debug = false
+
+    /// The accepted range for `scrollbackLines`. Clamped on read like
+    /// `dimOpacity`, rather than rejected, so a hand-edited 5000000 lands
+    /// somewhere usable instead of costing the setting.
+    static let scrollbackLinesRange = 0...100_000
 
     /// The accepted range for `dimOpacity`. A value outside it is clamped on
     /// read rather than rejected, so a hand-edited 0 or 5 lands somewhere
@@ -103,7 +128,7 @@ struct Config: Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case fontNames, terminalPalette, terminalThemes, quickCommands
-        case hotkeys, shell, shellArguments, dimOpacity, debug
+        case hotkeys, shell, shellArguments, dimOpacity, scrollbackLines, debug
     }
 
     init() {}
@@ -128,6 +153,12 @@ struct Config: Codable, Equatable {
         shellArguments = try c.decodeIfPresent([String].self, forKey: .shellArguments) ?? ["-l"]
         let rawDim = try c.decodeIfPresent(Double.self, forKey: .dimOpacity) ?? 0.8
         dimOpacity = rawDim.clamped(to: Self.dimOpacityRange)
+        // `try?`, unlike the keys above: a number written as `"5000"` or as
+        // `500.5` is a typo people make, and a throwing decode here would cost
+        // the whole file rather than the one key. The wrong type reads as
+        // absent and falls back to 500.
+        let rawScrollback = (try? c.decodeIfPresent(Int.self, forKey: .scrollbackLines)) ?? nil
+        scrollbackLines = (rawScrollback ?? 500).clamped(to: Self.scrollbackLinesRange)
         debug = try c.decodeIfPresent(Bool.self, forKey: .debug) ?? false
     }
 
@@ -144,6 +175,7 @@ struct Config: Codable, Equatable {
         // disk is the only documentation of this setting a user is guaranteed
         // to find, and a key absent by default is a key nobody knows to add.
         try c.encode(dimOpacity, forKey: .dimOpacity)
+        try c.encode(scrollbackLines, forKey: .scrollbackLines)
         if debug { try c.encode(true, forKey: .debug) }
     }
 
@@ -270,6 +302,12 @@ struct HotkeyConfig: Codable, Equatable {
 
 extension Double {
     func clamped(to range: ClosedRange<Double>) -> Double {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+extension Int {
+    func clamped(to range: ClosedRange<Int>) -> Int {
         Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }

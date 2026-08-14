@@ -726,6 +726,30 @@ struct Check {
         check(Config.dimOpacityRange.lowerBound < AppState.opacityRange.lowerBound,
               "the dim floor sits below the Opacity floor, because ⌃⌥T always undoes a dim")
 
+        // scrollbackLines. 500 is SwiftTerm's own default, so the default here
+        // has to stay 500 or upgrading silently changes how much history every
+        // tab keeps.
+        check(decode(#"{}"#)?.scrollbackLines == 500, "scrollbackLines defaults to 500")
+        check(decode(#"{"scrollbackLines":10000}"#)?.scrollbackLines == 10000,
+              "a scrollbackLines value in range is kept")
+        check(decode(#"{"scrollbackLines":0}"#)?.scrollbackLines == 0,
+              "scrollbackLines 0 is honored — it means no scrollback, not unlimited")
+        check(decode(#"{"scrollbackLines":-5}"#)?.scrollbackLines == 0,
+              "a negative scrollbackLines clamps to 0 rather than reaching SwiftTerm")
+        check(decode(#"{"scrollbackLines":5000000}"#)?.scrollbackLines
+              == Config.scrollbackLinesRange.upperBound,
+              "an extra zero in scrollbackLines is clamped, since the buffer is allocated up front")
+        // The buffer is a ring of a fixed length, so there is no value meaning
+        // unlimited and the cap has to be finite.
+        check(Config.scrollbackLinesRange.upperBound == 100_000,
+              "the scrollbackLines cap is 100,000 lines")
+        // Wrong-typed, not just out of range: this key decodes with `try?` so a
+        // quoted or fractional number costs the key, never the whole file.
+        check(decode(#"{"scrollbackLines":"10000"}"#)?.scrollbackLines == 500,
+              "a quoted scrollbackLines falls back to the default instead of failing the config")
+        check(decode(#"{"scrollbackLines":500.5,"shell":"/bin/bash"}"#)?.shell == "/bin/bash",
+              "a fractional scrollbackLines does not cost the rest of the config")
+
         check(decode(#"{}"#)?.hotkeys.toggle == "control+option+t",
               "a config with no hotkeys object uses the defaults")
         check(decode(#"{"hotkeys":{"toggle":"cmd+shift+t"}}"#)?.hotkeys.toggle == "cmd+shift+t",

@@ -596,6 +596,15 @@ precmd() { printf '\e]7;file://%s%s\a' "$HOST" "$PWD" }</code></pre>
                 full, so a low value is safe in a way the Opacity floor is not.</td>
           </tr>
           <tr>
+            <td><code>scrollbackLines</code></td><td>number</td><td><code>500</code></td>
+            <td>How many lines of output each tab keeps above the visible screen. 0 keeps none, so
+                anything that scrolls off the top is gone. There is no unlimited setting: the buffer
+                is allocated at its full length when the tab opens and costs lines &times; columns per
+                tab, so values are clamped to 0&ndash;100,000 rather than rejected. Full-screen
+                programs like <code>less</code> and <code>vim</code> draw into a separate buffer that
+                has no scrollback in any terminal; this does not change that.</td>
+          </tr>
+          <tr>
             <td><code>debug</code></td><td>boolean</td><td><code>false</code></td>
             <td>Writes a log to <code>~/Library/Logs/Driftwood/driftwood.log</code>: the resolved
                 font, hotkey registrations and failures, rejected themes and quick commands, and the

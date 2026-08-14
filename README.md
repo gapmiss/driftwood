@@ -75,6 +75,7 @@ Every key, with its type and default, is in the guide's [configuration reference
     "quit": ""
   },
   "dimOpacity": 0.8,
+  "scrollbackLines": 500,
   "terminalPalette": { "ansi1": "#c64a5a" },
   "quickCommands": [
     { "id": "logs", "title": "Tail logs", "command": "tail -f /tmp/app.log", "hotkey": "control+option+1" }
@@ -90,6 +91,8 @@ Every key, with its type and default, is in the guide's [configuration reference
 **`hotkeys`** — `"modifier+modifier+key"`. At least one of control, option or command is required; shift alone does not count, because a registered hotkey consumes that keystroke in *every* application and `shift+a` is just A. Set a binding to `""` or `"none"` to turn it off. `quit` ships off: it is the one binding whose misfire costs you every running shell.
 
 **`dimOpacity`** — how faded the panel gets when the right-click menu's When Unfocused ▸ is set to Dim. 0.8 by default; lower is dimmer. It multiplies with the theme's own translucency and with Opacity ▸, so at a low opacity a dimmed panel is very faint. Values are clamped to 0.05–1.0 rather than rejected. The floor is not zero because fading a window does not stop it taking clicks — an invisible panel would still swallow every click inside its frame, and you would type into a terminal you cannot see. Nothing else here is at risk: dimming only applies while the panel is unfocused, and every ⌃⌥T restores it to full.
+
+**`scrollbackLines`** — how many lines of output each tab keeps above the visible screen. 500 by default. Set it to 0 to keep none, in which case anything that scrolls off the top is gone for good. There is no unlimited setting: the buffer is allocated at its full length when the tab opens and costs lines × columns for every tab, so a value above 100,000 is clamped rather than rejected. Full-screen programs — `less`, `vim`, `htop` — draw into a separate buffer that has no scrollback in any terminal, and this setting does not change that.
 
 **`terminalPalette`** — per-role color overrides on top of whichever theme is selected. Roles are `ansi0`…`ansi15`, `background`, `foreground`, `cursor`, `selection` and `tabBarText`; values are `#RRGGBB` or `#RRGGBBAA`. A line that does not parse costs that one color and nothing else.
 
