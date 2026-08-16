@@ -2,6 +2,12 @@
 
 All notable changes to Driftwood are recorded here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The panel gets the keyboard back after a background app interrupts it. A Little Snitch connection alert, or any similar prompt from an app with no Dock icon, activates over what you are doing and takes the keyboard; when you answer it, macOS returns focus to the app that was frontmost, which is never Driftwood. The panel was left on screen and inert, and the next thing you typed went to the editor behind it. Driftwood now watches for that round trip — focus leaves for a background app and comes back to the same app it left — and takes the keyboard again, still without becoming the frontmost application. Switching to an app with a Dock icon is an ordinary app switch and never triggers it, and an alert answered more than ten seconds later is left alone. Under When Unfocused ▸ Hide the alert still hides the panel and this does not bring it back, since that is the setting doing what it says.
+
 ## [0.4.0] — 2026-08-13
 
 ### Added

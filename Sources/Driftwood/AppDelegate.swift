@@ -72,6 +72,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// app reads as immediate.
     private let focusLossDelay: TimeInterval = 0.2
 
+    /// Which application was frontmost the last time the panel held the
+    /// keyboard. See `applicationActivated` — this is the app focus has to
+    /// come back to before the panel will take the keyboard again.
+    private var focusOwner: pid_t?
+    /// When a background application last took the keyboard away from the
+    /// panel, or nil if no interruption is outstanding.
+    private var interruptedAt: Date?
+    /// When the panel last stopped being the thing keystrokes go to.
+    private var panelLostKeyAt: Date?
+    /// How long after an interruption the panel is still willing to take the
+    /// keyboard back. Long enough to read and answer a permission prompt,
+    /// short enough that an alert left sitting while you go and do something
+    /// else does not pull focus into the panel much later.
+    private let reclaimWindow: TimeInterval = 10
+    /// How long to wait after the interrupted app comes back before taking the
+    /// keyboard. `didActivateApplication` arrives while that app is still
+    /// installing its own key window, and taking key inside that window loses
+    /// the race.
+    private let reclaimDelay: TimeInterval = 0.15
+
 
     // MARK: - Launch
 
@@ -634,6 +654,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 name: name, object: nil
             )
         }
+        // A separate center: application activation is a workspace event, and
+        // `NotificationCenter.default` never sees it.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(applicationActivated),
+            name: NSWorkspace.didActivateApplicationNotification, object: nil
+        )
     }
 
     @objc private func keyWindowChanged() {
@@ -644,8 +670,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         if panelIsInUse {
             panel.alphaValue = 1
+            // Whoever is in front while the panel is being typed in is the app
+            // focus must return to before `applicationActivated` reclaims it.
+            let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
+            if let front, front != ProcessInfo.processInfo.processIdentifier {
+                focusOwner = front
+            }
+            interruptedAt = nil
             return
         }
+        panelLostKeyAt = Date()
         guard state.onFocusLoss != .nothing, panel.isVisible else { return }
 
         // Deferred and re-checked — see `focusLossDelay` for why acting here
@@ -671,6 +705,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         focusLossWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + focusLossDelay, execute: work)
+    }
+
+    /// Take the keyboard back after a background app borrowed it and gave it
+    /// to somebody else.
+    ///
+    /// **The panel is never the frontmost application, so nothing hands focus
+    /// back to it.** A Little Snitch connection alert, a permission prompt or
+    /// any similar helper activates over whatever you are doing, takes the
+    /// keyboard from the panel, and on dismissal macOS restores the app that
+    /// was frontmost — the editor behind the panel, every time. The panel is
+    /// left standing on screen and inert, and the next thing you type goes to
+    /// the editor. Without this handler the only way back is another ⌃⌥T.
+    ///
+    /// **The shape being detected is a round trip, not a focus loss.** Focus
+    /// goes from `focusOwner` to a background app and back to `focusOwner`
+    /// again. A deliberate switch does not have that shape: it ends somewhere
+    /// else. So an activation of a *regular* app — one with a Dock icon,
+    /// which is what you ⌘-Tab to — forgets the panel ever had the keyboard
+    /// and disarms the whole thing until the panel is focused again. That
+    /// restriction, not the `reclaimWindow` timeout, is what keeps this from
+    /// firing on an ordinary app switch; the timeout only covers a prompt you
+    /// walked away from.
+    ///
+    /// **Why the interruption is recorded rather than inferred at the end.**
+    /// By the time `focusOwner` comes back, nothing on screen says why it
+    /// went away, and the panel resigned key several hundred milliseconds ago.
+    /// `panelIsInUse || panelLostKeyAt` covers both notification orderings:
+    /// AppKit does not guarantee whether the panel's `didResignKey` arrives
+    /// before or after the workspace's activation notice.
+    ///
+    /// Under `onFocusLoss: "hide"` the alert still hides the panel, and this
+    /// deliberately does not bring it back — `panel.isVisible` is false by
+    /// then, and re-showing a panel the user's own setting just hid would be
+    /// this handler overruling that setting.
+    @objc private func applicationActivated(_ note: Notification) {
+        guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey]
+                as? NSRunningApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              let owner = focusOwner
+        else { return }
+
+        guard app.processIdentifier != owner else {
+            // Focus is back where it was. Reclaim it if a background app is
+            // what took it, and recently.
+            guard let at = interruptedAt,
+                  Date().timeIntervalSince(at) < reclaimWindow
+            else { return }
+            interruptedAt = nil
+            guard panel.isVisible, !panelIsInUse else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + reclaimDelay) { [weak self] in
+                guard let self, panel.isVisible, !panelIsInUse else { return }
+                focusLossWork?.cancel()
+                focusLossWork = nil
+                panel.alphaValue = 1
+                panel.makeKeyAndOrderFront(nil)
+                focusActiveSession()
+                DebugLog.log(
+                    "reclaim: key=\(panel.isKeyWindow) frontmost="
+                    + "\(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")"
+                )
+            }
+            return
+        }
+
+        let name = app.localizedName ?? "?"
+        guard app.activationPolicy != .regular else {
+            DebugLog.log("focus owner released: switched to \(name)")
+            focusOwner = nil
+            interruptedAt = nil
+            return
+        }
+
+        let lostKeyJustNow = panelLostKeyAt.map { Date().timeIntervalSince($0) < 1 } ?? false
+        guard panelIsInUse || lostKeyJustNow else { return }
+        interruptedAt = Date()
+        DebugLog.log("interrupted by background app \(name)")
     }
 
     /// ⌃⌥T. Three states, not two.
