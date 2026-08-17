@@ -20,9 +20,11 @@ brew trust --cask gapmiss/tap/driftwood   # required for third-party taps
 brew install --cask gapmiss/tap/driftwood
 ```
 
-Or download the DMG from [Releases](https://github.com/gapmiss/driftwood/releases) and drag Driftwood to Applications. The cask installs the same app, so the first launch is blocked either way.
+Or download the DMG from [Releases](https://github.com/gapmiss/driftwood/releases) and drag Driftwood to Applications. The cask installs the same app.
 
-The app is signed ad-hoc rather than notarized, so the first launch is blocked. Right-click the app → Open → Open, once. After that it launches normally. On macOS 15 and later the step is different — the guide has [both](https://gapmiss.github.io/driftwood/guide.html#getting-started).
+The app is signed ad-hoc rather than notarized, so macOS may block the first launch. If it does, right-click the app → Open → Open, once; after that it launches normally. On macOS 15 and later the step is different — the guide has [both](https://gapmiss.github.io/driftwood/guide.html#getting-started).
+
+Whether you actually see the dialog depends on how the app reached your disk. A DMG downloaded in a browser gets blocked. A Homebrew install of the same app has been observed launching with no dialog at all, because Homebrew does the download itself and what lands on disk carries different quarantine bits. Both are normal, and neither means anything is wrong.
 
 Or build it yourself:
 
@@ -43,11 +45,23 @@ make run
 | ⌘T / ⌘W | New tab / close tab |
 | ⌘⇧] / ⌘⇧[ | Next tab / previous tab |
 | ⌘1…⌘9 | Jump to a tab |
-| ⌘+ / ⌘− | Font size up / down |
+| ⌘+ / ⌘= / ⌘− | Font size up / down |
+| ⌘C / ⌘V / ⌘A | Copy / paste / select all |
 
-Drag the panel by its tab strip, or ⌘-drag anywhere in it. Resize from any edge or corner. Right-click for themes, opacity, what the panel does when it loses focus, launch at login and the rest.
+Drag the panel by its tab strip, or ⌘-drag anywhere in it. Resize from any edge or corner.
 
-The panel has no close button on purpose — hiding it is ⌃⌥T, and quitting is in the right-click menu.
+There is no ⌘Q. Quitting ends every shell in every tab, and the panel takes the keyboard while the app behind it still looks frontmost — so a ⌘Q meant for that app used to hit Driftwood instead. Quit from the right-click menu, or set `quit` in `config.json`, which is empty by default for the same reason. The panel has no close button either: hiding it is ⌃⌥T.
+
+### The right-click menu
+
+It is the whole settings surface — there is no preferences window and no menu bar item. Right-click anywhere in the panel:
+
+- **Theme ▸**, **Font Size ▸**, **Opacity ▸** — the three that change how the panel looks. All persist across a relaunch.
+- **When Unfocused ▸** — what the panel does once it is not the window you are typing in: **Stay Visible** (the default), **Dim**, or **Hide**. Hide puts the panel away when you click into another app; nothing is lost, because every tab keeps its shell, its scrollback and its half-typed command line.
+- **New Tab**, and **Quick Commands ▸** — your saved commands, plus **Show Palette…**.
+- **Launch at Login** — a checkbox, off by default. It registers Driftwood with macOS through `SMAppService`, the same mechanism System Settings ▸ General ▸ Login Items shows. **Turn it off before uninstalling.** macOS holds that registration itself and it outlives the app bundle, so deleting the app first leaves a login item pointing at nothing.
+- **Reset Position** — puts the panel back in the middle of the display, for when you have dragged it somewhere awkward.
+- **Edit Configuration…** opens `config.json`; **Check for Updates…** opens the releases page in your browser, which is the only thing in Driftwood that reaches the network, and it does it by handing a URL to your browser rather than fetching anything itself.
 
 ## Settings
 
@@ -123,6 +137,8 @@ It records the resolved font, hotkey registrations and failures, rejected themes
 ## Known issues
 
 Pasted text renders in black until the next keypress redraws it. This is in SwiftTerm, the terminal engine, and cannot be fixed from here — the wrong color is baked in before the echo is drawn.
+
+A second ⌃⌥T can look like a crash. Pressing it while you are typing in the panel hides the panel, which is what it is meant to do — but with no Dock icon and no menu bar item, nothing on screen then says Driftwood is still running. Press ⌃⌥T again to bring it back, or open Driftwood from Finder, Spotlight or your launcher, which summons the panel with every tab and its scrollback untouched.
 
 ## Credits
 
